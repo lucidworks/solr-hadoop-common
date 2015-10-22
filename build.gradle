@@ -1,0 +1,116 @@
+buildscript {
+  repositories {
+    jcenter()
+  }
+  dependencies {
+  }
+}
+
+plugins {
+  id 'com.github.johnrengelman.shadow' version '1.2.1'
+}
+
+defaultTasks 'dist'
+
+subprojects {
+  apply plugin: "maven"
+  apply plugin: 'maven-publish'
+  apply plugin: "java"
+  apply plugin: 'project-report'
+  apply plugin: 'jacoco'
+
+  gradle.projectsEvaluated {
+    tasks.withType(JavaCompile) {
+      options.compilerArgs << "-Xlint:unchecked" << "-Xlint:deprecation"
+    }
+  }
+
+  repositories {
+    mavenCentral()
+    jcenter()
+    mavenLocal()
+  }
+
+  jacocoTestReport {
+    reports {
+      xml.enabled false
+      csv.enabled false
+      html.destination "${buildDir}/jacocoHtml"
+    }
+  }
+
+  publishing {
+    publications {
+      core(MavenPublication) {
+        from components.java
+      }
+    }
+  }
+
+  task dist(dependsOn: "publishToMavenLocal") {
+  }
+}
+
+project(":solr-hadoop-document") {
+
+  dependencies {
+    compile("org.apache.hadoop:hadoop-client:${hadoop2Version}") {
+      exclude group: "org.fusesource.leveldbjni"
+      exclude group: "aopalliance"
+      exclude group: "org.apache.avro"
+      exclude group: "org.apache.zookeeper"
+      exclude group: "org.mortbay.jetty"
+      exclude group: "org.apache.httpcomponents"
+      exclude group: "com.google.protobuf"
+      exclude group: "io.netty"
+      exclude group: "jline"
+      exclude group: "com.sun.jersey"
+      exclude group: "log4j"
+    }
+    compile("org.apache.solr:solr-solrj:${solrVersion}") {
+      transitive = false
+    }
+    compile(project(':solr-hadoop-io')) {
+      transitive = false
+    }
+
+    compile "org.apache.tika:tika-core:${tikaVersion}"
+    compile("org.apache.tika:tika-parsers:${tikaVersion}") {
+      exclude module: "asm-debug-all"
+      exclude module: "quartz"
+    }
+
+    testCompile(project(':solr-hadoop-testbase'))
+  }
+}
+
+
+project(":solr-hadoop-io") {
+
+  configurations {
+    solrtest
+  }
+
+  dependencies {
+    compile("org.apache.solr:solr-solrj:${solrVersion}")
+    compile("org.apache.hadoop:hadoop-client:${hadoop2Version}")
+    testCompile 'junit:junit:4.12'
+    testCompile 'com.carrotsearch.randomizedtesting:junit4-ant:1.4.0'
+    testCompile "org.apache.solr:solr-test-framework:${solrVersion}"
+
+    testCompile (project(':solr-hadoop-testbase')) {
+      transitive = false
+    }
+  }
+}
+
+
+project(":solr-hadoop-testbase") {
+  dependencies {
+    compile (project(':solr-hadoop-io')) {
+      transitive = false
+    }
+    compile "org.apache.hadoop:hadoop-client:${hadoop2Version}"
+    compile "org.apache.solr:solr-test-framework:${solrVersion}"
+  }
+}
