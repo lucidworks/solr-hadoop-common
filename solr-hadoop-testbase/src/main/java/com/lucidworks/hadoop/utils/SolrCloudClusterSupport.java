@@ -10,6 +10,8 @@ import java.nio.file.Files;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.SortedMap;
+import java.util.TreeMap;
 import org.apache.log4j.Logger;
 import org.apache.solr.client.solrj.SolrQuery;
 import org.apache.solr.client.solrj.SolrServerException;
@@ -30,10 +32,12 @@ import org.apache.solr.common.cloud.ZkStateReader;
 import org.apache.solr.common.params.CollectionParams;
 import org.apache.solr.common.params.CoreAdminParams;
 import org.apache.solr.common.params.ModifiableSolrParams;
+import org.eclipse.jetty.servlet.ServletHolder;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.noggit.CharArr;
 import org.noggit.JSONWriter;
+import org.restlet.ext.servlet.ServerServlet;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -55,11 +59,17 @@ public class SolrCloudClusterSupport {
 
   @BeforeClass
   public static void startCluster() throws Exception {
-
     File solrXml = new File(ClassLoader.getSystemClassLoader().getResource("solr.xml").getPath());
-
     TEMP_DIR = Files.createTempDirectory("MiniSolrCloudCluster").toFile();
-    cluster = new MiniSolrCloudCluster(1, null, TEMP_DIR, solrXml, null, null);
+
+    // need the schema stuff
+    final SortedMap<ServletHolder, String> extraServlets = new TreeMap<>();
+    final ServletHolder solrSchemaRestApi = new ServletHolder("SolrSchemaRestApi", ServerServlet.class);
+    solrSchemaRestApi.setInitParameter("org.restlet.application", "org.apache.solr.rest.SolrSchemaRestApi");
+    extraServlets.put(solrSchemaRestApi, "/schema/*");
+
+    cluster = new MiniSolrCloudCluster(1, null, TEMP_DIR, solrXml, extraServlets, null, null);
+
     cloudSolrServer = new CloudSolrClient(cluster.getZkServer().getZkAddress(), true);
     cloudSolrServer.setDefaultCollection("collection1");
 
@@ -68,6 +78,7 @@ public class SolrCloudClusterSupport {
 
     createDefaultCollection();
     verifyCluster();
+    log.info("Start Solr Cluster");
   }
 
   @AfterClass
@@ -80,6 +91,7 @@ public class SolrCloudClusterSupport {
     TEMP_DIR = null;
     cluster = null;
     cloudSolrServer = null;
+    log.info("Stop Solr Cluster");
   }
 
   private static void createDefaultCollection() throws Exception {

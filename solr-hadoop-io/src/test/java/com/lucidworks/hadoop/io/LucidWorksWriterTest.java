@@ -1,9 +1,11 @@
 package com.lucidworks.hadoop.io;
 
+import com.lucidworks.hadoop.io.impl.LWMockDocument;
 import com.lucidworks.hadoop.utils.SolrCloudClusterSupport;
-import com.lucidworks.hadoop.utils.TestUtils;
 import java.io.IOException;
 import java.net.SocketException;
+import java.util.HashMap;
+import java.util.Map;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.util.Progressable;
@@ -20,9 +22,6 @@ import org.slf4j.LoggerFactory;
 public class LucidWorksWriterTest extends SolrCloudClusterSupport {
 
   private transient static Logger log = LoggerFactory.getLogger(LucidWorksWriterTest.class);
-
-  // TODO
-  //private final String COLLECTION = "com.lucidworks.hadoop.ingest.collection";
 
   @Before
   public void setUp() throws Exception {
@@ -45,23 +44,18 @@ public class LucidWorksWriterTest extends SolrCloudClusterSupport {
 
     lucidWorksWriter.open(conf, "name");
 
-    lucidWorksWriter.write(new Text("text"), TestUtils
-        .createPipelineDocumentWritable("id-1", "field-1", "field-value-1", "field-2",
-            "field-value-2", "field-3", "field-value-3"));
+    lucidWorksWriter.write(new Text("text"), LucidWorksWriterTest
+        .createLWDocumentWritable("id-1", "field-1", "field-value-1", "field-2", "field-value-2",
+            "field-3", "field-value-3"));
 
-    LWDocumentWritable doc = TestUtils
-        .createPipelineDocumentWritable("id-2", "field-1", "This is field value 1", "field-2_ss",
+    LWDocumentWritable doc = LucidWorksWriterTest
+        .createLWDocumentWritable("id-2", "field-1", "This is field value 1", "field-2_ss",
             "This is field value 2.  It is longer than field value 1.", "field-3",
             "This is field value 3.  It is longer than both field value 1 and field value 2.");
     //add annotations
     LWDocument pipeDoc = doc.getLWDocument();
     pipeDoc.addField("field-2_ss", "This is a 2nd entry for field value 2");
-    //    PipelineField pField = pipeDoc.getFirstField("field-3");
-    //    for (int i = 0; i < 5; i++) {
-    //      Map<String, String> features = new HashMap<String, String>();
-    //      features.put("annot_" + i, "annotation_" + i);
-    //      pField.addAnnotation(new Annotation("foo", i, i + 1, features));
-    //    }
+
     //add metadata
     for (int i = 0; i < 6; i++) {
       pipeDoc.addMetadata("meta_" + i, "meta_value_" + i);
@@ -93,8 +87,8 @@ public class LucidWorksWriterTest extends SolrCloudClusterSupport {
     //make sure we trigger the buffering
     int totalDocs = 5000;
     for (int counter = 0; counter < totalDocs; counter++) {
-      lucidWorksWriter.write(new Text("text-" + counter), TestUtils
-          .createPipelineDocumentWritable("id-" + counter, "field-1", "field-value-1", "field-2",
+      lucidWorksWriter.write(new Text("text-" + counter), LucidWorksWriterTest
+          .createLWDocumentWritable("id-" + counter, "field-1", "field-value-1", "field-2",
               "field-value-2", "field-3", "field-value-3"));
 
     }
@@ -115,9 +109,9 @@ public class LucidWorksWriterTest extends SolrCloudClusterSupport {
     conf.setInt("lww.retry.sleep.time", 1);//make the sleep really short
     lucidWorksWriter.open(conf, "name");
     //try {
-    lucidWorksWriter.write(new Text("text-1"), TestUtils
-        .createPipelineDocumentWritable("id-1", "field-1", "field-value-1", "field-2",
-            "field-value-2", "field-3", "field-value-3"));
+    lucidWorksWriter.write(new Text("text-1"), LucidWorksWriterTest
+        .createLWDocumentWritable("id-1", "field-1", "field-value-1", "field-2", "field-value-2",
+            "field-3", "field-value-3"));
     lucidWorksWriter.close();//close here
   }
 
@@ -134,9 +128,9 @@ public class LucidWorksWriterTest extends SolrCloudClusterSupport {
     //make sure we trigger the buffering and have left overs
     int totalDocs = 5051;
     for (int counter = 0; counter < totalDocs; counter++) {
-      lucidWorksWriter.write(new Text("text-" + counter), TestUtils
-          .createPipelineDocumentWritable("id-" + counter, "field-1", "field-value-1", "field-2",
-              "field-value-2", "field-3", "field-value-3"));
+      lucidWorksWriter.write(new Text("text-" + counter), LucidWorksWriterTest
+              .createLWDocumentWritable("id-" + counter, "field-1", "field-value-1", "field-2",
+                  "field-value-2", "field-3", "field-value-3"));
 
     }
     lucidWorksWriter.close();
@@ -187,5 +181,14 @@ public class LucidWorksWriterTest extends SolrCloudClusterSupport {
         log.warn("closing");
       }
     }
+  }
+
+  public static LWDocumentWritable createLWDocumentWritable(String id, String... keyValues) {
+    Map<String, String> fields = new HashMap<>();
+    for (int i = 0; i < keyValues.length; i += 2) {
+      fields.put(keyValues[i], keyValues[i + 1]);
+    }
+    LWMockDocument doc = new LWMockDocument(id, fields);
+    return new LWDocumentWritable(doc);
   }
 }
