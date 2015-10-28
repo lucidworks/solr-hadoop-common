@@ -7,7 +7,7 @@ buildscript {
 }
 
 plugins {
-  id 'com.github.johnrengelman.shadow' version '1.2.1'
+  id 'com.github.johnrengelman.shadow' version '1.2.2'
 }
 
 defaultTasks 'dist'
@@ -84,7 +84,6 @@ project(":solr-hadoop-document") {
   }
 }
 
-
 project(":solr-hadoop-io") {
 
   configurations {
@@ -103,7 +102,6 @@ project(":solr-hadoop-io") {
     }
   }
 }
-
 
 project(":solr-hadoop-testbase") {
   dependencies {
