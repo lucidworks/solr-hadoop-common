@@ -9,6 +9,8 @@ public interface LWDocumentFactory {
 
   public LWDocument createDocument(String id, Map<String, String> metadata);
 
+  public void configure(JobConf conf);
+
   public void init(JobConf conf);
 
 }

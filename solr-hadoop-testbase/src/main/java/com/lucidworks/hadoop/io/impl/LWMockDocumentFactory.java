@@ -23,6 +23,11 @@ public class LWMockDocumentFactory implements LWDocumentFactory {
   }
 
   @Override
+  public void configure(JobConf conf) {
+
+  }
+
+  @Override
   public void init(JobConf conf) {
     this.conf = conf;
   }

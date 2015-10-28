@@ -14,7 +14,7 @@ public class LWDocumentFactoryProvider {
   /**
    * Init Service Loader.
    */
-  public static void init(JobConf conf) throws IOException {
+  public static void init(JobConf conf) {
     if (documentFactory == null) {
       final ServiceLoader<LWDocumentFactory> serviceLoader = ServiceLoader
           .load(LWDocumentFactory.class);
@@ -25,29 +25,29 @@ public class LWDocumentFactoryProvider {
         if (conf != null) {
           documentFactory.init(conf);
         }
+        // Get the first service
         break;
       }
     }
   }
 
-  public static LWDocumentFactory getDocumentFactory(JobConf conf) {
+  public static void configure(JobConf conf) throws IOException {
+    if (documentFactory == null) {
+      log.debug("Try to load the LWDocumentFactory one more time");
+      // Try to load the LWDocumentFactory one more time
+      LWDocumentFactoryProvider.init(conf);
+    }
     if (documentFactory != null) {
-      return documentFactory;
-    }
-    final ServiceLoader<LWDocumentFactory> serviceLoader = ServiceLoader
-        .load(LWDocumentFactory.class);
-    for (LWDocumentFactory factory : serviceLoader) {
-      log.debug("Loading LWDocumentFactory class on Mapper: " + factory.getClass());
-      // Get the first service implementation.
-      documentFactory = factory;
       if (conf != null) {
-        documentFactory.init(conf);
+        documentFactory.configure(conf);
       }
-      return documentFactory;
+    } else {
+      throw new IOException("LWDocumentFactory Service not found.");
     }
+  }
 
-    // TODO: Thrown a readable error.
-    return null;
+  public static LWDocumentFactory getDocumentFactory()  {
+      return documentFactory;
   }
 
 }

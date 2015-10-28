@@ -17,6 +17,11 @@ public class LWSolrDocumentFactory implements LWDocumentFactory {
   }
 
   @Override
+  public void configure(JobConf conf) {
+
+  }
+
+  @Override
   public void init(JobConf conf) {
     // do nothing
   }

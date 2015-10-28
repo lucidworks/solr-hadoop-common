@@ -24,6 +24,19 @@ public class TikaParsing {
   private static Parser parser = new AutoDetectParser();
   private static ParseContext context = new ParseContext();
 
+  //TODO: use this flags here?
+  public static final String TIKA_INCLUDE_IMAGES = "default.include.images";
+  public static final String TIKA_FLATENN_COMPOUND = "default.faltten.compound";
+  public static final String TIKA_ADD_FAILED_DOCS = "default.add.failed.docs";
+  public static final String TIKA_ADD_ORIGINAL_CONTENT = "default.add.original.content";
+  public static final String FIELD_MAPPING_RENAME_UNKNOWN = "default.rename.unknown";
+
+  public static boolean includeImages = false;
+  public static boolean flattenCompound = false;
+  public static boolean addFailedDocs = false;
+  public static boolean addOriginalContent = false;
+  public static boolean renameUnknown = false;
+
   public static void parseLWSolrDocument(LWSolrDocument document, byte[] data) {
     ContentHandler text = new BodyContentHandler();
     InputStream input = new ByteArrayInputStream(data);

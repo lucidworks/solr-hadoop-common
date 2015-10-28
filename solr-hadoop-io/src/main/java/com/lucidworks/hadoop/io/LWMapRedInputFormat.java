@@ -201,8 +201,9 @@ public class LWMapRedInputFormat implements InputFormat<IntWritable, LWDocumentW
 
     @Override
     public LWDocumentWritable createValue() {
-      return new LWDocumentWritable(
-          LWDocumentFactoryProvider.getDocumentFactory(conf).createDocument());
+        return new LWDocumentWritable(
+            LWDocumentFactoryProvider.getDocumentFactory().createDocument());
+
     }
 
     @Override
@@ -224,7 +225,7 @@ public class LWMapRedInputFormat implements InputFormat<IntWritable, LWDocumentW
     }
 
     private LWDocument getNextDocument(SolrDocument curDoc) {
-      LWDocument newDoc = LWDocumentFactoryProvider.getDocumentFactory(conf).createDocument();
+      LWDocument newDoc = LWDocumentFactoryProvider.getDocumentFactory().createDocument();
       for (String field : curDoc.getFieldNames()) {
         if (field.equals("id")) {
           newDoc.setId((String) curDoc.get(field));
@@ -289,7 +290,6 @@ public class LWMapRedInputFormat implements InputFormat<IntWritable, LWDocumentW
     return splits;
   }
 
-  @SuppressWarnings("unchecked")
   @Override
   public RecordReader getRecordReader(InputSplit split, JobConf job, Reporter reporter)
       throws IOException {
