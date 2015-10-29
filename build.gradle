@@ -40,6 +40,16 @@ subprojects {
   }
 
   publishing {
+    repositories {
+      maven {
+        credentials {
+          username "${project.properties.USER}"
+          password "${project.properties.PASS}"
+        }
+        url "${project.properties.REPO}"
+      }
+    }
+
     publications {
       core(MavenPublication) {
         from components.java
