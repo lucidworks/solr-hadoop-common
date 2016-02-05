@@ -142,7 +142,11 @@ public class LWMockDocument implements LWDocument {
     if ("body".equals(name)) {
       name = name + "_txt";
     }
-    fields.put(name, value.toString());
+    if (name.equals(ID)) {
+      setId(value.toString());
+    } else {
+      fields.put(name, value.toString());
+    }
     return this;
   }
 

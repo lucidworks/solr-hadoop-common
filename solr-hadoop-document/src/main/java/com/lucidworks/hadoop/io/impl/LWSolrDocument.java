@@ -165,8 +165,11 @@ public class LWSolrDocument implements LWDocument {
 
   @Override
   public LWDocument addField(String name, Object value) {
-    // TODO field mapping?
-    document.addField(name, value);
+    if (name.equals(ID)) {
+      document.setField(ID, value);
+    } else {
+      document.addField(name, value);
+    }
     return this;
   }
 
