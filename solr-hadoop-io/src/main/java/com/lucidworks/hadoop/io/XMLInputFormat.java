@@ -41,13 +41,16 @@ public class XMLInputFormat extends FileInputFormat {
     private final String path;
 
     public XMLRecordReader(FileSplit split, JobConf jobConf) throws IOException {
-      log.info("Setting up XMLRecordReader for path: " + split.getPath() + "; startTag=" + jobConf.get(START_TAG_KEY) + ", endTag=" + jobConf.get(END_TAG_KEY));
+      log.info("Setting up XMLRecordReader for path: [" + split.getPath() + "]");
+      log.info("startTag=" + jobConf.get(START_TAG_KEY) + ", endTag=" + jobConf.get(END_TAG_KEY));
+
       startTag = jobConf.get(START_TAG_KEY).getBytes("utf-8");
       endTag = jobConf.get(END_TAG_KEY).getBytes("utf-8");
 
       // open the file and seek to the start of the split
       start = split.getStart();
       end = start + split.getLength();
+
       Path file = split.getPath();
       FileSystem fs = file.getFileSystem(jobConf);
 
@@ -57,6 +60,7 @@ public class XMLInputFormat extends FileInputFormat {
       fsin.seek(start);
     }
 
+    @Override
     public boolean next(Text key, Text value) throws IOException {
       if (fsin.getPos() < end) {
         if (readUntilMatch(startTag, false)) {
@@ -75,10 +79,12 @@ public class XMLInputFormat extends FileInputFormat {
       return false;
     }
 
+    @Override
     public Text createKey() {
       return new Text();
     }
 
+    @Override
     public Text createValue() {
       return new Text();
     }
@@ -98,19 +104,32 @@ public class XMLInputFormat extends FileInputFormat {
     private boolean readUntilMatch(byte[] match, boolean withinBlock) throws IOException {
       int i = 0;
       while (true) {
+
         int b = fsin.read();
+
         // end of file:
-        if (b == -1) return false;
+        if (b == -1) {
+          return false;
+        }
+
         // save to buffer:
-        if (withinBlock) buffer.write(b);
+        if (withinBlock) {
+          buffer.write(b);
+        }
 
         // check if we're matching:
         if (b == match[i]) {
           i++;
-          if (i >= match.length) return true;
-        } else i = 0;
+          if (i >= match.length) {
+            return true;
+          }
+        } else {
+          i = 0;
+        }
         // see if we've passed the stop point:
-        if (!withinBlock && i == 0 && fsin.getPos() >= end) return false;
+        if (!withinBlock && i == 0 && fsin.getPos() >= end) {
+          return false;
+        }
       }
     }
   }

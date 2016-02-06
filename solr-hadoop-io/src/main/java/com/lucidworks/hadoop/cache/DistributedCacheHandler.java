@@ -9,6 +9,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.BufferedReader;
+import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 
@@ -53,12 +54,19 @@ public class DistributedCacheHandler {
     BufferedReader fis = null;
     StringBuilder response = new StringBuilder();
     try {
+      String cacheFile = conf.get(fileName);
       Path[] pathsInCache = DistributedCache.getLocalCacheFiles(conf);
       if (pathsInCache != null) {
         for (Path p : pathsInCache) {
-          if (conf.get(fileName).contains(p.getName())) {
-            String line = null;
-            fis = new BufferedReader(new FileReader(p.toString()));
+          if (cacheFile.contains(p.getName())) {
+            String line;
+            try {
+              fis = new BufferedReader(new FileReader(p.toString()));
+            } catch (FileNotFoundException e) {
+              // Trying the cache file
+              log.warn("Error reading {} from the distributed cache, Trying {}", p.toString(), cacheFile);
+              fis = new BufferedReader(new FileReader(cacheFile));
+            }
             while ((line = fis.readLine()) != null) {
               line = line.trim();
               response.append(line).append('\n');
