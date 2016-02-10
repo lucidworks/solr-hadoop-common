@@ -2,15 +2,6 @@ package com.lucidworks.hadoop.io.impl;
 
 import com.lucidworks.hadoop.io.LWDocument;
 import com.lucidworks.hadoop.io.impl.tika.TikaParsing;
-import java.io.DataInput;
-import java.io.DataOutput;
-import java.io.IOException;
-import java.text.DateFormat;
-import java.text.SimpleDateFormat;
-import java.util.Collections;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.TimeZone;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.solr.common.SolrInputDocument;
@@ -20,6 +11,16 @@ import org.codehaus.jackson.map.ObjectMapper;
 import org.codehaus.jackson.map.SerializationConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.io.DataInput;
+import java.io.DataOutput;
+import java.io.IOException;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.util.Collections;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.TimeZone;
 
 public class LWSolrDocument implements LWDocument {
 
@@ -37,7 +38,7 @@ public class LWSolrDocument implements LWDocument {
 
   @Override
   public LWDocument[] process() {
-    return new LWDocument[] { this };
+    return new LWDocument[]{this};
   }
 
   @Override
@@ -138,7 +139,7 @@ public class LWSolrDocument implements LWDocument {
             }
           }
         }
-       document.put(solrFieldName, solrField);
+        document.put(solrFieldName, solrField);
       }
     }
   }
@@ -185,7 +186,7 @@ public class LWSolrDocument implements LWDocument {
     if (id == null) {
       setId(missingId);
     } else {
-      setId(id.getName());
+      setId((String) id.getValue());
     }
     return this;
   }
@@ -204,11 +205,6 @@ public class LWSolrDocument implements LWDocument {
     return document;
   }
 
-  @Override
-  public boolean equals(Object other) {
-    return convertToSolr().equals(((LWSolrDocument) other).convertToSolr());
-  }
-
   private static ObjectMapper createMapper() {
     ObjectMapper mapper = new ObjectMapper();
     mapper.configure(SerializationConfig.Feature.INDENT_OUTPUT, true);
@@ -219,6 +215,11 @@ public class LWSolrDocument implements LWDocument {
     df.setTimeZone(TimeZone.getTimeZone("UTC"));
     mapper.setDateFormat(df);
     return mapper;
+  }
+
+  @Override
+  public String toString() {
+    return document.toString();
   }
 
 }

@@ -1,54 +1,44 @@
 package com.lucidworks.hadoop.io.impl;
 
 import com.lucidworks.hadoop.io.LWDocument;
+import org.apache.hadoop.mapred.JobConf;
+import org.apache.solr.common.SolrInputDocument;
+
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
-import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
-import org.apache.hadoop.io.Text;
-import org.apache.hadoop.mapred.JobConf;
-import org.apache.solr.common.SolrInputDocument;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class LWMockDocument implements LWDocument {
 
-  private transient static Logger log = LoggerFactory.getLogger(LWMockDocument.class);
-  public static final String ID = "id";
-  public static final String CONTENT = "content";
-
-  private Map<String, String> fields;
-  private String id;
+  private LWSolrDocument document;
 
   public LWMockDocument() {
-    fields = new HashMap<>();
+    document = new LWSolrDocument();
   }
 
   public LWMockDocument(String id, Map<String, String> metadata) {
-    // TODO
+    document = new LWSolrDocument();
     if (metadata != null) {
-      fields = new HashMap<>(metadata);
-    } else {
-      fields = new HashMap<>();
+      document.setMetadata(metadata);
     }
-    this.id = id;
+    document.setId(id);
   }
 
   @Override
   public String getId() {
-    return id;
+    return document.getId();
   }
 
   @Override
   public void setMetadata(Map<String, String> metadata) {
-    // TODO
+    document.setMetadata(metadata);
   }
 
   @Override
   public LWDocument[] process() {
-    LWMockDocument tmp = new LWMockDocument(id, fields);
-    return new LWDocument[] { tmp };
+    return new LWDocument[]{document};
   }
 
   @Override
@@ -63,148 +53,120 @@ public class LWMockDocument implements LWDocument {
 
   @Override
   public void setId(String id) {
-    this.id = id;
+    document.setId(id);
   }
 
   @Override
   public Map<String, String> getMetadata() {
-    //TODO create metadata
-    return null;
-  }
-
-  public Map<String, String> getFields() {
-    return fields;
+    return document.getMetadata();
   }
 
   @Override
   public void write(DataOutput dataOutput) throws IOException {
-    writeString(id, dataOutput);
-    writeDocFields(fields, dataOutput);
+    document.write(dataOutput);
   }
 
   @Override
   public void readFields(DataInput dataInput) throws IOException {
-    String id = readString(dataInput);
-    this.id = id;
-    fields = new HashMap<>();
-    readDocFields(dataInput);
-  }
-
-  private String readString(DataInput in) throws IOException {
-    return Text.readString(in);
-  }
-
-  private void writeDocFields(Map<String, String> fields, DataOutput dataOutput)
-      throws IOException {
-    if (fields != null && fields.isEmpty() == false) {
-      dataOutput.writeInt(fields.size());
-      for (Map.Entry<String, String> entry : fields.entrySet()) {
-        writeString(entry.getKey(), dataOutput);
-        writeString(entry.getValue(), dataOutput);
-      }
-    } else {
-      dataOutput.writeInt(0);
-    }
-  }
-
-  private void writeString(String str, DataOutput dataOutput) throws IOException {
-    if (str != null) {
-      Text.writeString(dataOutput, str);
-    } else {
-      Text.writeString(dataOutput, "");
-    }
-  }
-
-  private void readDocFields(DataInput in) throws IOException {
-    int len = in.readInt();
-    if (len > 0) {
-      for (int i = 0; i < len; i++) {
-        String key = readString(in);// issue if this is empty?
-
-        if (key != null) {
-          String value = readString(in);
-          if (value != null) {
-            fields.put(key, value);
-          }
-        }
-      }
-    }
+    document.readFields(dataInput);
   }
 
   @Override
   public void setContent(byte[] data) {
-    fields.put(CONTENT, data.toString());
+    document.setContent(data);
   }
 
   @Override
   public LWDocument addField(String name, Object value) {
-    // TODO: Field mapping??
-    if ("body".equals(name)) {
-      name = name + "_txt";
-    }
-    if (name.equals(ID)) {
-      setId(value.toString());
-    } else {
-      fields.put(name, value.toString());
-    }
+    document.addField(name, value);
     return this;
   }
 
   @Override
   public LWDocument addMetadata(String name, String value) {
-    // TODO
-    fields.put(name, value);
+    document.addMetadata(name, value);
     return this;
   }
 
   @Override
   public LWDocument checkId(String idField, String missingId) {
-    String id = fields.get(idField);
-    if (id == null) {
-      setId(missingId);
-    } else {
-      setId(id);
-    }
+    document.checkId(idField, missingId);
     return this;
   }
 
   @Override
   public Object getFirstFieldValue(String name) {
-    return fields.get(name);
+    return document.getFirstFieldValue(name);
   }
 
   @Override
   public String toString() {
-    return "[" + id + "] = " + fields.toString();
+    return document.toString();
   }
 
   @Override
   public SolrInputDocument convertToSolr() {
-    SolrInputDocument solrDoc = new SolrInputDocument();
-
-    solrDoc.setField("id", getId());
-
-    // Fields
-    for (Map.Entry<String, String> field : fields.entrySet()) {
-      solrDoc.addField(field.getKey().replace('.', '_'), field.getValue());
-    }
-
-    return solrDoc;
+    return document.convertToSolr();
   }
 
   @Override
   public boolean equals(Object other) {
     LWMockDocument otherDoc = (LWMockDocument) other;
-    boolean r = id.equals(otherDoc.getId());
-    if (!r) {
+    return assertSolrInputDocumentEquals(document.convertToSolr(), otherDoc.document.convertToSolr());
+  }
+
+  // From SolrTestCaseJ4
+  public static boolean assertSolrInputDocumentEquals(Object expected, Object actual) {
+
+    if (!(expected instanceof SolrInputDocument) || !(actual instanceof SolrInputDocument)) {
       return false;
     }
-    for (Map.Entry<String, String> field : otherDoc.getFields().entrySet()) {
-      if (!fields.containsKey(field.getKey())) {
+
+    if (expected == actual) {
+      return true;
+    }
+
+    SolrInputDocument sdoc1 = (SolrInputDocument) expected;
+    SolrInputDocument sdoc2 = (SolrInputDocument) actual;
+    if (Float.compare(sdoc1.getDocumentBoost(), sdoc2.getDocumentBoost()) != 0) {
+      return false;
+    }
+
+    if (sdoc1.getFieldNames().size() != sdoc2.getFieldNames().size()) {
+      return false;
+    }
+
+    Iterator<String> iter1 = sdoc1.getFieldNames().iterator();
+    Iterator<String> iter2 = sdoc2.getFieldNames().iterator();
+
+    if (iter1.hasNext()) {
+      String key1 = iter1.next();
+      String key2 = iter2.next();
+
+      Object val1 = sdoc1.getFieldValues(key1);
+      Object val2 = sdoc2.getFieldValues(key2);
+
+      if (!key1.equals(key2) || !val1.equals(val2)) {
         return false;
       }
     }
-    return true;
+    if (sdoc1.getChildDocuments() == null && sdoc2.getChildDocuments() == null) {
+      return true;
+    }
+    if (sdoc1.getChildDocuments() == null || sdoc2.getChildDocuments() == null) {
+      return false;
+    } else if (sdoc1.getChildDocuments().size() != sdoc2.getChildDocuments().size()) {
+      return false;
+    } else {
+      Iterator<SolrInputDocument> childDocsIter1 = sdoc1.getChildDocuments().iterator();
+      Iterator<SolrInputDocument> childDocsIter2 = sdoc2.getChildDocuments().iterator();
+      while (childDocsIter1.hasNext()) {
+        if (!assertSolrInputDocumentEquals(childDocsIter1.next(), childDocsIter2.next())) {
+          return false;
+        }
+      }
+      return true;
+    }
   }
 
 }

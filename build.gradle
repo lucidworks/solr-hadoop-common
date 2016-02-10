@@ -47,7 +47,6 @@ project(":solr-hadoop-common:solr-hadoop-io") {
     testCompile "org.apache.solr:solr-test-framework:${solrVersion}"
 
     testCompile(project(':solr-hadoop-common:solr-hadoop-testbase')) {
-      transitive = false
     }
   }
 }
@@ -56,6 +55,9 @@ project(":solr-hadoop-common:solr-hadoop-testbase") {
   dependencies {
     compile(project(':solr-hadoop-common:solr-hadoop-io')) {
       transitive = false
+    }
+
+    compile(project(':solr-hadoop-common:solr-hadoop-document')) {
     }
     compile "org.apache.hadoop:hadoop-client:${hadoop2Version}"
     compile "org.apache.solr:solr-test-framework:${solrVersion}"
