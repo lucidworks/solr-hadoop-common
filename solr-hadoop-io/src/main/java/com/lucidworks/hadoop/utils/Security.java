@@ -32,16 +32,16 @@ public class Security {
       System.setProperty("javax.net.ssl.keyStore", keystore);
     }
     final String keystorePassword = job.get(LWW_KEYSTOREPASSWORD);
-    if (keystore != null) {
+    if (keystorePassword != null) {
       System.setProperty("javax.net.ssl.keyStorePassword", keystorePassword);
     }
     final String truststore = job.get(LWW_TRUSTSTORE);
-    if (keystore != null) {
+    if (truststore != null) {
       log.debug("Using truststore: " + truststore);
       System.setProperty("javax.net.ssl.trustStore", truststore);
     }
     final String truststorePassword = job.get(LWW_TRUSTSTOREPASSWORD);
-    if (keystore != null) {
+    if (truststorePassword != null) {
       System.setProperty("javax.net.ssl.trustStorePassword", truststorePassword);
     }
   }
