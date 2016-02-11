@@ -9,9 +9,14 @@ import org.slf4j.LoggerFactory;
 public class Security {
   public static final String LWW_JAAS_FILE = "lww.jaas.file";
   public static final String LWW_JAAS_APPNAME = "lww.jaas.appname";
+  public static final String LWW_KEYSTORE = "lww.keystore";
+  public static final String LWW_KEYSTOREPASSWORD = "lww.keystore.password";
+  public static final String LWW_TRUSTSTORE = "lww.truststore";
+  public static final String LWW_TRUSTSTOREPASSWORD = "lww.truststore.password";
 
   private static Logger log = LoggerFactory.getLogger(Security.class);
 
+  // Sets Security features if needed
   public static void setSecurityConfig(Configuration job) {
     final String jaasFile = job.get(LWW_JAAS_FILE);
     if (jaasFile != null) {
@@ -20,6 +25,24 @@ public class Security {
       final String appname = job.get(LWW_JAAS_APPNAME, "Client");
       System.setProperty("solr.kerberos.jaas.appname", appname);
       HttpClientUtil.setConfigurer(new Krb5HttpClientConfigurer());
+    }
+    final String keystore = job.get(LWW_KEYSTORE);
+    if (keystore != null) {
+      log.debug("Using keystore: " + keystore);
+      System.setProperty("javax.net.ssl.keyStore", keystore);
+    }
+    final String keystorePassword = job.get(LWW_KEYSTOREPASSWORD);
+    if (keystore != null) {
+      System.setProperty("javax.net.ssl.keyStorePassword", keystorePassword);
+    }
+    final String truststore = job.get(LWW_TRUSTSTORE);
+    if (keystore != null) {
+      log.debug("Using truststore: " + truststore);
+      System.setProperty("javax.net.ssl.trustStore", truststore);
+    }
+    final String truststorePassword = job.get(LWW_TRUSTSTOREPASSWORD);
+    if (keystore != null) {
+      System.setProperty("javax.net.ssl.trustStorePassword", truststorePassword);
     }
   }
 }
