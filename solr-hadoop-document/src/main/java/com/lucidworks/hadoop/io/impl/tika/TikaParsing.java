@@ -37,12 +37,16 @@ public class TikaParsing {
   public static boolean addOriginalContent = false;
   public static boolean renameUnknown = false;
 
+  // org.apache.lucene.index.DocumentsWriterPerThread.MAX_TERM_LENGTH_UTF = 32766
+  public static int MAX_TERM_LENGTH_UTF = 32766;
+
   public static void parseLWSolrDocument(LWSolrDocument document, byte[] data) {
     ContentHandler text = new BodyContentHandler();
     InputStream input = new ByteArrayInputStream(data);
     Metadata metadata = new Metadata();
     LinkContentHandler links = new LinkContentHandler();
     ContentHandler handler = new TeeContentHandler(links, text);
+
 
     try {
       parser.parse(input, handler, metadata, context);
@@ -72,7 +76,11 @@ public class TikaParsing {
       }
     }
     if (text != null) {
-      document.addField("body", text.toString());
+      String body = text.toString();
+      if (body.length() > MAX_TERM_LENGTH_UTF) {
+        body = body.substring(0, MAX_TERM_LENGTH_UTF);
+      }
+      document.addField("body", body);
     }
   }
 
