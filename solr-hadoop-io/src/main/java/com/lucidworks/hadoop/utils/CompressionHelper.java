@@ -5,12 +5,14 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.compress.CompressionCodec;
 import org.apache.hadoop.io.compress.CompressionCodecFactory;
-import org.apache.hadoop.io.compress.CompressionInputStream;
 import org.apache.hadoop.io.compress.Decompressor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.InputStream;
 
 public class CompressionHelper {
+  private transient static Logger log = LoggerFactory.getLogger(CompressionHelper.class);
 
   //FIXME: use MIME types
   public static final String GZIP_EXTGENSION = ".gz";
@@ -21,9 +23,9 @@ public class CompressionHelper {
   public static boolean isCompressed(Path filePath) {
     String stringPath = filePath.toString();
     if (stringPath.endsWith(GZIP_EXTGENSION)
-            || stringPath.endsWith(BZIP2_EXTGENSION)
-            || stringPath.endsWith(LZO_EXTGENSION)
-            || stringPath.endsWith(SNAPPY_EXTGENSION)) {
+        || stringPath.endsWith(BZIP2_EXTGENSION)
+        || stringPath.endsWith(LZO_EXTGENSION)
+        || stringPath.endsWith(SNAPPY_EXTGENSION)) {
       System.out.println("File: " + filePath.toString() + " is compressed");
       return true;
     }
@@ -42,33 +44,19 @@ public class CompressionHelper {
     CompressionCodec codec = factory.getCodec(filePath);
 
     if (codec == null) {
-      // FIXME: not throw, just log
-      throw new RuntimeException("No codec found for file "
-              + filePath.toString());
+      log.error("No codec found for file " + filePath.toString());
+      return null;
     }
 
     try {
       FileSystem fs = filePath.getFileSystem(conf);
       Decompressor decompressor = codec.createDecompressor();
-      CompressionInputStream in = codec.createInputStream(fs.open(filePath),
-              decompressor);
-      return in;
+      return codec.createInputStream(fs.open(filePath), decompressor);
     } catch (Exception e) {
-      System.out.println("Error opening compressed file: " + e.getMessage());
+      log.error("Error opening compressed file: " + e.getMessage());
       e.printStackTrace();
     }
     return null;
   }
 
-  public static CompressionCodec createCompressionCodec(Path filePath, Configuration conf) {
-    CompressionCodecFactory factory = new CompressionCodecFactory(conf);
-    CompressionCodec codec = factory.getCodec(filePath);
-
-    if (codec == null) {
-      // :(
-      throw new RuntimeException("No codec found for file "
-              + filePath.toString());
-    }
-    return codec;
-  }
 }
