@@ -46,6 +46,8 @@ project(":solr-hadoop-common:solr-hadoop-io") {
     testCompile 'com.carrotsearch.randomizedtesting:junit4-ant:1.4.0'
     testCompile "org.apache.solr:solr-test-framework:${solrVersion}"
 
+    testCompile 'com.github.tomakehurst:wiremock:1.58'
+
     testCompile(project(':solr-hadoop-common:solr-hadoop-testbase')) {
     }
   }
