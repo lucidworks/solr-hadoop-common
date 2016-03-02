@@ -6,7 +6,11 @@ import com.carrotsearch.randomizedtesting.annotations.ThreadLeakScope;
 import com.carrotsearch.randomizedtesting.annotations.ThreadLeakZombies;
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.SimpleFileVisitor;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
@@ -55,13 +59,12 @@ public class SolrCloudClusterSupport {
 
   protected static MiniSolrCloudCluster cluster;
   protected static CloudSolrClient cloudSolrServer;
-  public static File TEMP_DIR;
+  public static Path TEMP_DIR;
   public static final String DEFAULT_COLLECTION = "collection1";
 
   @BeforeClass
   public static void startCluster() throws Exception {
-    File solrXml = new File(ClassLoader.getSystemClassLoader().getResource("solr.xml").getPath());
-    TEMP_DIR = Files.createTempDirectory("MiniSolrCloudCluster").toFile();
+    TEMP_DIR = Files.createTempDirectory("MiniSolrCloudCluster");
 
     // need the schema stuff
     final SortedMap<ServletHolder, String> extraServlets = new TreeMap<>();
@@ -69,7 +72,10 @@ public class SolrCloudClusterSupport {
     solrSchemaRestApi.setInitParameter("org.restlet.application", "org.apache.solr.rest.SolrSchemaRestApi");
     extraServlets.put(solrSchemaRestApi, "/schema/*");
 
-    cluster = new MiniSolrCloudCluster(1, null, TEMP_DIR, solrXml, extraServlets, null, null);
+    //cluster = new MiniSolrCloudCluster(1, null, TEMP_DIR, solrXml, extraServlets, null, null);
+    cluster = new MiniSolrCloudCluster(1, null, TEMP_DIR, MiniSolrCloudCluster.DEFAULT_CLOUD_SOLR_XML, extraServlets, null);
+
+
 
     cloudSolrServer = new CloudSolrClient(cluster.getZkServer().getZkAddress(), true);
     cloudSolrServer.setDefaultCollection("collection1");
@@ -86,9 +92,23 @@ public class SolrCloudClusterSupport {
   public static void stopCluster() throws Exception {
     cloudSolrServer.close();
     cluster.shutdown();
-    if (TEMP_DIR != null) {
-      TEMP_DIR.delete();
-    }
+
+    // Delete TEMP_DIR contetnt
+    Files.walkFileTree(TEMP_DIR, new SimpleFileVisitor<Path>() {
+      @Override
+      public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+        Files.delete(file);
+        return FileVisitResult.CONTINUE;
+      }
+
+      @Override
+      public FileVisitResult postVisitDirectory(Path dir, IOException exc) throws IOException {
+        Files.delete(dir);
+        return FileVisitResult.CONTINUE;
+      }
+
+    });
+
     TEMP_DIR = null;
     cluster = null;
     cloudSolrServer = null;
@@ -144,7 +164,7 @@ public class SolrCloudClusterSupport {
     long startMs = System.currentTimeMillis();
 
     ZkStateReader zkr = cloudSolrServer.getZkStateReader();
-    zkr.updateClusterState(true); // force the state to be fresh
+    zkr.updateClusterState(); // force the state to be fresh
 
     ClusterState cs = zkr.getClusterState();
     Collection<Slice> slices = cs.getActiveSlices(testCollectionName);
@@ -157,7 +177,7 @@ public class SolrCloudClusterSupport {
       // refresh state every 2 secs
       if (waitMs % 2000 == 0) {
         log.info("Updating ClusterState");
-        cloudSolrServer.getZkStateReader().updateClusterState(true);
+        cloudSolrServer.getZkStateReader().updateClusterState();
       }
 
       cs = cloudSolrServer.getZkStateReader().getClusterState();
@@ -203,7 +223,7 @@ public class SolrCloudClusterSupport {
   }
 
   protected static String printClusterStateInfo(String collection) throws Exception {
-    cloudSolrServer.getZkStateReader().updateClusterState(true);
+    cloudSolrServer.getZkStateReader().updateClusterState();
     String cs = null;
     ClusterState clusterState = cloudSolrServer.getZkStateReader().getClusterState();
     if (collection != null) {
