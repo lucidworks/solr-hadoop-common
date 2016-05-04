@@ -1,4 +1,4 @@
-package com.lucidworks.hadoop.utils;
+package com.lucidworks.hadoop.security;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.solr.client.solrj.impl.HttpClientUtil;
@@ -6,7 +6,7 @@ import org.apache.solr.client.solrj.impl.Krb5HttpClientConfigurer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class Security {
+public class SolrSecurity {
   public static final String LWW_JAAS_FILE = "lww.jaas.file";
   public static final String LWW_JAAS_APPNAME = "lww.jaas.appname";
   public static final String LWW_KEYSTORE = "lww.keystore";
@@ -14,7 +14,7 @@ public class Security {
   public static final String LWW_TRUSTSTORE = "lww.truststore";
   public static final String LWW_TRUSTSTOREPASSWORD = "lww.truststore.password";
 
-  private static Logger log = LoggerFactory.getLogger(Security.class);
+  private static Logger log = LoggerFactory.getLogger(SolrSecurity.class);
 
   // Sets Security features if needed
   public static void setSecurityConfig(Configuration job) {

@@ -1,7 +1,7 @@
 package com.lucidworks.hadoop.io;
 
 import com.lucidworks.hadoop.clients.FusionPipelineClient;
-import com.lucidworks.hadoop.utils.Security;
+import com.lucidworks.hadoop.security.SolrSecurity;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.io.Text;
@@ -17,7 +17,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 public class FusionOutputFormat implements OutputFormat<Text, LWDocumentWritable> {
@@ -33,7 +37,7 @@ public class FusionOutputFormat implements OutputFormat<Text, LWDocumentWritable
     public FusionRecordWriter(Configuration job, String name, Progressable progressable) throws IOException {
       this.progressable = progressable;
 
-      Security.setSecurityConfig(job);
+      //SolrSecurity.setSecurityConfig(job);
 
       int batchSize = Integer.parseInt(job.get("fusion.batchSize", "500"));
       long bufferTimeoutMs = Long.parseLong(job.get("fusion.buffer.timeoutms", "1000"));
@@ -78,8 +82,8 @@ public class FusionOutputFormat implements OutputFormat<Text, LWDocumentWritable
       }
     }
 
-    protected Map<String,Object> doc2json(SolrInputDocument solrDoc) {
-      Map<String,Object> json = new HashMap<String,Object>();
+    protected Map<String, Object> doc2json(SolrInputDocument solrDoc) {
+      Map<String, Object> json = new HashMap<String, Object>();
       String docId = (String) solrDoc.getFieldValue("id");
       if (docId == null)
         throw new IllegalStateException("Couldn't resolve the id for document: " + solrDoc);
@@ -106,25 +110,25 @@ public class FusionOutputFormat implements OutputFormat<Text, LWDocumentWritable
         return; // no values to add for this field
 
       if (vc == 1) {
-        Map<String,Object> fieldMap = mapField(f, pfx, field.getFirstValue());
+        Map<String, Object> fieldMap = mapField(f, pfx, field.getFirstValue());
         if (fieldMap != null)
           fields.add(fieldMap);
       } else {
         for (Object val : field.getValues()) {
-          Map<String,Object> fieldMap = mapField(f, pfx, val);
+          Map<String, Object> fieldMap = mapField(f, pfx, val);
           if (fieldMap != null)
             fields.add(fieldMap);
         }
       }
     }
 
-    protected Map<String,Object> mapField(String f, String pfx, Object val) {
-      Map<String,Object> fieldMap = new HashMap<String, Object>(10);
-      String fieldName = (pfx != null) ? pfx+f : f;
+    protected Map<String, Object> mapField(String f, String pfx, Object val) {
+      Map<String, Object> fieldMap = new HashMap<String, Object>(10);
+      String fieldName = (pfx != null) ? pfx + f : f;
       fieldMap.put("name", fieldName);
       fieldMap.put("value", val);
       return fieldMap;
-    }    
+    }
 
     public void close(Reporter reporter) throws IOException {
       if (!docBuffer.buffer.isEmpty()) {
