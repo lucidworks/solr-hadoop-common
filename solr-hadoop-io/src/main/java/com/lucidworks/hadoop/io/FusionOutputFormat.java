@@ -1,7 +1,6 @@
 package com.lucidworks.hadoop.io;
 
 import com.lucidworks.hadoop.clients.FusionPipelineClient;
-import com.lucidworks.hadoop.security.SolrSecurity;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.io.Text;
@@ -36,8 +35,6 @@ public class FusionOutputFormat implements OutputFormat<Text, LWDocumentWritable
 
     public FusionRecordWriter(Configuration job, String name, Progressable progressable) throws IOException {
       this.progressable = progressable;
-
-      //SolrSecurity.setSecurityConfig(job);
 
       int batchSize = Integer.parseInt(job.get("fusion.batchSize", "500"));
       long bufferTimeoutMs = Long.parseLong(job.get("fusion.buffer.timeoutms", "1000"));
