@@ -1,6 +1,6 @@
 package com.lucidworks.hadoop.io;
 
-import com.lucidworks.hadoop.utils.Security;
+import com.lucidworks.hadoop.security.SolrSecurity;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
@@ -299,7 +299,7 @@ public class LWMapRedInputFormat implements InputFormat<IntWritable, LWDocumentW
     String collection = job.get(SOLR_COLLECTION);
     String query = job.get(SOLR_QUERY, "*:*");
     if (lwSplit.isZk) {
-      Security.setSecurityConfig(job);
+      SolrSecurity.setSecurityConfig(job);
       if (lwSplit.isShard) {
         solr = new HttpSolrClient(lwSplit.getConnectionUri());
       } else {

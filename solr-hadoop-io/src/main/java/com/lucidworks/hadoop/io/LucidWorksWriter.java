@@ -1,6 +1,6 @@
 package com.lucidworks.hadoop.io;
 
-import com.lucidworks.hadoop.utils.Security;
+import com.lucidworks.hadoop.security.SolrSecurity;
 import java.io.IOException;
 import java.net.ConnectException;
 import java.net.SocketException;
@@ -63,10 +63,10 @@ public class LucidWorksWriter {
     log.info("Opening LucidWorksWriter for {}", name);
     //If the solr server has not already been set, then set it from configs.
     if (solr == null) {
-      Security.setSecurityConfig(job);
+      SolrSecurity.setSecurityConfig(job);
       String zkHost = job.get(SOLR_ZKHOST);
       String collection = job.get(SOLR_COLLECTION, "collection1");
-      if (zkHost != null && zkHost.equals("") == false) {
+      if (zkHost != null && !zkHost.equals("")) {
         log.info("Indexing to collection: " + collection + " w/ ZK host: " + zkHost);
         solr = new CloudSolrClient(zkHost);
         ((CloudSolrClient) solr).setDefaultCollection(collection);
