@@ -1,7 +1,7 @@
 package com.lucidworks.hadoop.io;
 
 import com.github.tomakehurst.wiremock.verification.LoggedRequest;
-import com.lucidworks.hadoop.clients.FusionPipelineClientTest;
+import com.lucidworks.hadoop.fusion.FusionPipelineClientTest;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.Text;

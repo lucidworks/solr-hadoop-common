@@ -1,4 +1,4 @@
-package com.lucidworks.hadoop.clients;
+package com.lucidworks.hadoop.fusion;
 
 import com.github.tomakehurst.wiremock.http.Request;
 import com.github.tomakehurst.wiremock.http.RequestListener;
@@ -202,7 +202,7 @@ public class FusionPipelineClientTest {
         pool.shutdownNow(); // Cancel currently executing tasks
         // Wait a while for tasks to respond to being cancelled
         if (!pool.awaitTermination(30, TimeUnit.SECONDS))
-          System.err.println("Pool did not terminate");
+          log.error("Pool did not terminate");
       }
     } catch (InterruptedException ie) {
       // (Re-)Cancel if current thread also interrupted

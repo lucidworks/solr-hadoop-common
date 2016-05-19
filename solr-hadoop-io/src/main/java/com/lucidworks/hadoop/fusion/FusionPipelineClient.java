@@ -1,17 +1,19 @@
-package com.lucidworks.hadoop.clients;
+package com.lucidworks.hadoop.fusion;
 
 import com.lucidworks.hadoop.security.FusionKrb5HttpClientConfigurer;
-import org.apache.hadoop.mapred.Counters;
-import org.apache.hadoop.mapred.Reporter;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.apache.hadoop.mapred.Counters;
+import org.apache.hadoop.mapred.Reporter;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpException;
 import org.apache.http.HttpRequest;
 import org.apache.http.HttpRequestInterceptor;
 import org.apache.http.HttpResponse;
+import org.apache.http.auth.AuthScope;
 import org.apache.http.auth.UsernamePasswordCredentials;
 import org.apache.http.client.CookieStore;
+import org.apache.http.client.CredentialsProvider;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.config.CookieSpecs;
 import org.apache.http.client.config.RequestConfig;
@@ -24,6 +26,7 @@ import org.apache.http.entity.EntityTemplate;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.auth.BasicScheme;
 import org.apache.http.impl.client.BasicCookieStore;
+import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.impl.cookie.BasicClientCookie;
@@ -69,6 +72,7 @@ public class FusionPipelineClient {
       credentials = new UsernamePasswordCredentials(user, pass);
     }
 
+    @SuppressWarnings("deprecation")
     public void process(HttpRequest request, HttpContext context) throws HttpException, IOException {
       request.addHeader(BasicScheme.authenticate(credentials, "US-ASCII", false));
     }
@@ -102,12 +106,12 @@ public class FusionPipelineClient {
     this(reporter, endpointUrl, null, null, null);
   }
 
-  public FusionPipelineClient(Reporter reporter, String endpointUrl, String fusionUser, String fusionPass, String fusionRealm) throws
+  @SuppressWarnings("deprecation")
+  public FusionPipelineClient(Reporter reporter, String endpointUrl, String fusionUser, String fusionPass, String
+      fusionRealm) throws
       MalformedURLException {
 
     this.reporter = reporter;
-    globalConfig = RequestConfig.custom().setCookieSpec(CookieSpecs.BEST_MATCH).build();
-    cookieStore = new BasicCookieStore();
     this.fusionUser = fusionUser;
     this.fusionPass = fusionPass;
     this.fusionRealm = fusionRealm;
@@ -126,8 +130,14 @@ public class FusionPipelineClient {
       httpClientBuilder.setMaxConnPerRoute(100);
       httpClientBuilder.setMaxConnTotal(500);
 
-      if (fusionUser != null && fusionRealm == null)
+      if (fusionUser != null && fusionRealm == null) {
         httpClientBuilder.addInterceptorFirst(new PreEmptiveBasicAuthenticator(fusionUser, fusionPass));
+      }
+      CredentialsProvider credsProvider = new BasicCredentialsProvider();
+      credsProvider.setCredentials(
+          new AuthScope(AuthScope.ANY_HOST, AuthScope.ANY_PORT),
+          new UsernamePasswordCredentials(fusionUser, fusionPass));
+      httpClientBuilder.setDefaultCredentialsProvider(credsProvider);
 
       httpClient = httpClientBuilder.build();
     }
@@ -332,9 +342,10 @@ public class FusionPipelineClient {
         sessions = establishSessions(originalEndpoints, fusionUser, fusionPass, fusionRealm);
         mutable = new ArrayList<String>(sessions.keySet());
       }
-      if (mutable.isEmpty())
+      if (mutable.isEmpty()) {
         throw new IllegalStateException("No available endpoints! " +
             "Check log for previous errors as to why there are no more endpoints available. This is a fatal error.");
+      }
     }
 
     return mutable;
@@ -342,12 +353,11 @@ public class FusionPipelineClient {
 
   public void postBatchToPipeline(List docs) throws Exception {
     int numDocs = docs.size();
-
     int requestId = requestCounter.incrementAndGet();
     ArrayList<String> mutable = getAvailableEndpoints();
+
     if (mutable.size() > 1) {
       Exception lastExc = null;
-
       // try all the endpoints until success is reached ... or we run out of endpoints to try ...
       while (!mutable.isEmpty()) {
         String endpoint = getLbEndpoint(mutable);
@@ -363,11 +373,11 @@ public class FusionPipelineClient {
           }
         }
 
-        if (log.isDebugEnabled())
+        if (log.isDebugEnabled()) {
           log.debug("POSTing batch of " + numDocs + " input docs to " + endpoint + " as request " + requestId);
+        }
 
-        Exception retryAfterException =
-            postJsonToPipelineWithRetry(endpoint, docs, mutable, lastExc, requestId);
+        Exception retryAfterException = postJsonToPipelineWithRetry(endpoint, docs, mutable, lastExc, requestId);
         if (retryAfterException == null) {
           lastExc = null;
           break; // request succeeded ...
@@ -384,17 +394,17 @@ public class FusionPipelineClient {
 
     } else {
       String endpoint = getLbEndpoint(mutable);
-      if (log.isDebugEnabled())
+      if (log.isDebugEnabled()) {
         log.debug("POSTing batch of " + numDocs + " input docs to " + endpoint + " as request " + requestId);
-
+      }
       Exception exc = postJsonToPipelineWithRetry(endpoint, docs, mutable, null, requestId);
       if (exc != null)
         throw exc;
     }
   }
 
-  protected Exception postJsonToPipelineWithRetry(String endpoint, List docs, ArrayList<String> mutable, Exception
-      lastExc, int requestId)
+  protected synchronized Exception postJsonToPipelineWithRetry(
+      String endpoint, List docs, ArrayList<String> mutable, Exception lastExc, int requestId)
       throws Exception {
     Exception retryAfterException = null;
 
@@ -408,8 +418,9 @@ public class FusionPipelineClient {
       log.warn("Failed to send request " + requestId + " to '" + endpoint + "' due to: " + exc);
       if (mutable.size() > 1) {
         // try another endpoint but update the cloned list to avoid re-hitting the one having an error
-        if (log.isDebugEnabled())
+        if (log.isDebugEnabled()) {
           log.debug("Will re-try failed request " + requestId + " on next endpoint in the list");
+        }
 
         mutable.remove(endpoint);
         retryAfterException = exc;

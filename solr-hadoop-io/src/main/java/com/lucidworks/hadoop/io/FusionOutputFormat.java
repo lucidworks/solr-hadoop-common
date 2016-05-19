@@ -1,6 +1,6 @@
 package com.lucidworks.hadoop.io;
 
-import com.lucidworks.hadoop.clients.FusionPipelineClient;
+import com.lucidworks.hadoop.fusion.FusionPipelineClient;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.io.Text;
@@ -23,6 +23,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
+import static com.lucidworks.hadoop.fusion.Constants.FUSION_AUTHENABLED;
+import static com.lucidworks.hadoop.fusion.Constants.FUSION_INDEX_ENDPOINT;
+import static com.lucidworks.hadoop.fusion.Constants.FUSION_PASS;
+import static com.lucidworks.hadoop.fusion.Constants.FUSION_REALM;
+import static com.lucidworks.hadoop.fusion.Constants.FUSION_USER;
+
 public class FusionOutputFormat implements OutputFormat<Text, LWDocumentWritable> {
 
   private transient static Logger log = LoggerFactory.getLogger(FusionOutputFormat.class);
@@ -40,11 +46,11 @@ public class FusionOutputFormat implements OutputFormat<Text, LWDocumentWritable
       long bufferTimeoutMs = Long.parseLong(job.get("fusion.buffer.timeoutms", "1000"));
       this.docBuffer = new DocBuffer(batchSize, bufferTimeoutMs);
 
-      boolean fusionAuthEnabled = "true".equals(job.get("fusion.authenabled", "true"));
-      String fusionUser = job.get("fusion.user");
-      String fusionPass = job.get("fusion.pass");
-      String fusionRealm = job.get("fusion.realm");
-      String endpoints = job.get("fusion.endpoints");
+      boolean fusionAuthEnabled = "true".equals(job.get(FUSION_AUTHENABLED, "true"));
+      String fusionUser = job.get(FUSION_USER);
+      String fusionPass = job.get(FUSION_PASS);
+      String fusionRealm = job.get(FUSION_REALM);
+      String endpoints = job.get(FUSION_INDEX_ENDPOINT);
 
       Reporter reporter = null;
       if (progressable instanceof Reporter) {
@@ -142,6 +148,7 @@ public class FusionOutputFormat implements OutputFormat<Text, LWDocumentWritable
           docBuffer.reset();
         }
       }
+      fusionPipelineClient.shutdown();
     }
   } // end FusionRecordWriter class
 

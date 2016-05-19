@@ -12,7 +12,6 @@ import org.apache.http.client.config.AuthSchemes;
 import org.apache.http.entity.BufferedHttpEntity;
 import org.apache.http.impl.auth.SPNegoSchemeFactory;
 import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.impl.client.DefaultHttpClient;
 import org.apache.http.protocol.HttpContext;
 import org.apache.solr.client.solrj.impl.HttpClientConfigurer;
 import org.apache.solr.client.solrj.impl.HttpClientUtil;
@@ -42,16 +41,12 @@ public class FusionKrb5HttpClientConfigurer extends HttpClientConfigurer {
 
   private Configuration jaasConfig = null;
 
-  public Configuration getJaasConfig() {
-    return jaasConfig;
-  }
-
   public static synchronized CloseableHttpClient createClient(String fusionPrincipal) {
     if (logger.isDebugEnabled()) {
       System.setProperty("sun.security.krb5.debug", "true");
     }
     if (fusionPrincipal == null) {
-      logger.error("fusion.user (principal) must be set in order to use kerberos!");
+      logger.error("fusion.user [principal] must be set in order to use kerberos");
     }
     HttpClientUtil.setConfigurer(new FusionKrb5HttpClientConfigurer(fusionPrincipal));
     CloseableHttpClient httpClient = HttpClientUtil.createClient(null);
@@ -75,7 +70,8 @@ public class FusionKrb5HttpClientConfigurer extends HttpClientConfigurer {
     jaasConfig = new FusionKrb5HttpClientConfigurer.FusionJaasConfiguration(fusionPrincipal);
   }
 
-  public void configure(DefaultHttpClient httpClient, SolrParams config) {
+  @SuppressWarnings("deprecation")
+  public void configure(org.apache.http.impl.client.DefaultHttpClient httpClient, SolrParams config) {
     super.configure(httpClient, config);
     if (System.getProperty(LOGIN_CONFIG_PROP) != null) {
       String configValue = System.getProperty(LOGIN_CONFIG_PROP);
@@ -117,10 +113,10 @@ public class FusionKrb5HttpClientConfigurer extends HttpClientConfigurer {
     }
   }
 
-
   private static class FusionJaasConfiguration extends Configuration {
     private Configuration baseConfig;
     private String fusionPrincipal;
+    private AppConfigurationEntry[] globalAppConfigurationEntry;
 
     public FusionJaasConfiguration(String fusionPrincipal) {
       this.fusionPrincipal = fusionPrincipal;
@@ -129,7 +125,10 @@ public class FusionKrb5HttpClientConfigurer extends HttpClientConfigurer {
       } catch (SecurityException var2) {
         this.baseConfig = null;
       }
-
+      if (this.baseConfig != null) {
+        String clientAppName = System.getProperty(LOGIN_APP_NAME, "FusionClient"); // FusionClient by default
+        this.globalAppConfigurationEntry = this.baseConfig.getAppConfigurationEntry(clientAppName);
+      }
     }
 
     private AppConfigurationEntry overwriteOptions(AppConfigurationEntry app) {
@@ -137,16 +136,12 @@ public class FusionKrb5HttpClientConfigurer extends HttpClientConfigurer {
       AppConfigurationEntry.LoginModuleControlFlag flag = app.getControlFlag();
       String loginModule = app.getLoginModuleName();
 
-      // Get the current principal for debug
-      Object principal = options.get("principal");
-      if (principal != null) {
-        FusionKrb5HttpClientConfigurer.logger.debug(principal.getClass() + "not using" + principal);
-      }
-
       // Overwriting options
       Map<String, Object> overwriteOptions = new HashMap<String, Object>(options);
       overwriteOptions.put("principal", fusionPrincipal);
       overwriteOptions.put("doNotPrompt", "true");
+
+      FusionKrb5HttpClientConfigurer.logger.debug("Overwriting kerberos principal with [: " + fusionPrincipal + "]");
 
       return new AppConfigurationEntry(loginModule, flag, overwriteOptions);
     }
@@ -156,18 +151,16 @@ public class FusionKrb5HttpClientConfigurer extends HttpClientConfigurer {
         return null;
       } else {
         FusionKrb5HttpClientConfigurer.logger.debug("Login prop: " + System.getProperty(LOGIN_CONFIG_PROP));
-        String clientAppName = System.getProperty(LOGIN_APP_NAME, "Client");
-        AppConfigurationEntry[] app = this.baseConfig.getAppConfigurationEntry(clientAppName);
         if (fusionPrincipal == null) {
           FusionKrb5HttpClientConfigurer.logger.debug("fusionPrincipal is null using principal from JAAS file.");
-          return app;
+          return globalAppConfigurationEntry;
         }
-        if (app == null) {
+        if (globalAppConfigurationEntry == null) {
           return null;
         }
 
         // Must be only one Entry, if more use the first one.
-        return new AppConfigurationEntry[]{overwriteOptions(app[0])};
+        return new AppConfigurationEntry[]{overwriteOptions(globalAppConfigurationEntry[0])};
       }
     }
   }
