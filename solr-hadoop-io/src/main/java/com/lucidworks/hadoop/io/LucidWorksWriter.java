@@ -1,17 +1,6 @@
 package com.lucidworks.hadoop.io;
 
 import com.lucidworks.hadoop.security.SolrSecurity;
-import java.io.IOException;
-import java.net.ConnectException;
-import java.net.SocketException;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.Map.Entry;
-import org.apache.commons.httpclient.ConnectTimeoutException;
-import org.apache.commons.httpclient.NoHttpResponseException;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.util.Progressable;
@@ -24,6 +13,14 @@ import org.apache.solr.common.SolrInputDocument;
 import org.apache.solr.common.params.ModifiableSolrParams;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.Map.Entry;
 
 public class LucidWorksWriter {
 
@@ -196,33 +193,28 @@ public class LucidWorksWriter {
   }
 
   protected void maybeRetry(SolrServerException e) throws IOException {
-    Throwable rootCause = e.getRootCause();
-    if (rootCause instanceof ConnectException || rootCause instanceof ConnectTimeoutException ||
-        rootCause instanceof NoHttpResponseException ||
-        rootCause instanceof SocketException) {
+    try {
+      Thread.sleep(sleep);
+    } catch (InterruptedException e1) {
+      // ignore
+    }
+    boolean sent = false;
+    for (int i = 0; i < maxRetries; i++) {
       try {
-        Thread.sleep(sleep);
-      } catch (InterruptedException e1) {
-      }
-      boolean sent = false;
-      for (int i = 0; i < maxRetries; i++) {
-        try {
-          sendBuffer();
-          //success
-          sent = true;
-          break;
+        sendBuffer();
+        //success
+        sent = true;
+        break;
 
-        } catch (SolrServerException e1) {
-          try {
-            Thread.sleep(i * sleep);
-          } catch (InterruptedException e2) {
-          }
+      } catch (SolrServerException e1) {
+        try {
+          Thread.sleep(i * sleep);
+        } catch (InterruptedException e2) {
+          // ignore
         }
       }
-      if (sent == false) {
-        throw makeIOException(e);
-      }
-    } else {
+    }
+    if (!sent) {
       throw makeIOException(e);
     }
   }
@@ -249,7 +241,7 @@ public class LucidWorksWriter {
   public void close() throws IOException {
     log.info("Closing the Writer");
     try {
-      if (buffer.isEmpty() == false) {
+      if (!buffer.isEmpty()) {
         try {
           sendBuffer();
           if (solr instanceof ConcurrentUpdateSolrClient) {
@@ -262,7 +254,7 @@ public class LucidWorksWriter {
           maybeRetry(e);
         }
       }
-      if (commitOnClose == true) {
+      if (commitOnClose) {
         log.info("Sending commit");
         solr.commit(false, false);
       }
