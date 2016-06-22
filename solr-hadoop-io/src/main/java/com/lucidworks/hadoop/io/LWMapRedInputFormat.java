@@ -291,8 +291,8 @@ public class LWMapRedInputFormat implements InputFormat<IntWritable, LWDocumentW
   }
 
   @Override
-  public RecordReader getRecordReader(InputSplit split, JobConf job, Reporter reporter)
-      throws IOException {
+  public RecordReader<IntWritable, LWDocumentWritable>  getRecordReader(
+      InputSplit split, JobConf job, Reporter reporter) throws IOException {
 
     LWInputSplit lwSplit = (LWInputSplit) split;
     SolrClient solr;

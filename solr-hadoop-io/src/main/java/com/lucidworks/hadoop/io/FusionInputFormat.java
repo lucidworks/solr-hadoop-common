@@ -181,7 +181,8 @@ public class FusionInputFormat implements InputFormat<IntWritable, LWDocumentWri
   }
 
   @Override
-  public RecordReader getRecordReader(InputSplit split, JobConf job, Reporter reporter) throws IOException {
+  public RecordReader<IntWritable, LWDocumentWritable> getRecordReader(
+      InputSplit split, JobConf job, Reporter reporter) throws IOException {
     FusionInputSplit fusionSplit = (FusionInputSplit) split;
 
     boolean fusionAuthEnabled = "true".equals(job.get(FUSION_AUTHENABLED, "true"));
