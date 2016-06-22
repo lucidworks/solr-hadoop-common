@@ -12,4 +12,9 @@ public final class Constants {
   public static final String FUSION_INDEX_ENDPOINT = "fusion.endpoints";
   public static final String FUSION_QUERY_ENDPOINT = "fusion.query.endpoints";
   public static final String FUSION_QUERY = "fusion.query";
+
+  // Kerberos
+  public static final String FUSION_LOGIN_CONFIG = "java.security.auth.login.config";
+  public static final String FUSION_LOGIN_APP_NAME = "fusion.jaas.appname";
+
 }

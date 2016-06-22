@@ -1,6 +1,7 @@
 package com.lucidworks.hadoop.security;
 
 import com.google.common.collect.Sets;
+import com.lucidworks.hadoop.fusion.Constants;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpEntityEnclosingRequest;
 import org.apache.http.HttpException;
@@ -31,13 +32,14 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
+import static com.lucidworks.hadoop.fusion.Constants.FUSION_LOGIN_CONFIG;
+import static com.lucidworks.hadoop.fusion.Constants.FUSION_LOGIN_APP_NAME;
+
+
 public class FusionKrb5HttpClientConfigurer extends HttpClientConfigurer {
 
   private static final Logger logger = LoggerFactory.getLogger(FusionKrb5HttpClientConfigurer.class);
   private String fusionPrincipal = null;
-
-  public static final String LOGIN_CONFIG_PROP = "java.security.auth.login.config";
-  public static final String LOGIN_APP_NAME = "fusion.jaas.appname";
 
   private Configuration jaasConfig = null;
 
@@ -73,12 +75,11 @@ public class FusionKrb5HttpClientConfigurer extends HttpClientConfigurer {
   @SuppressWarnings("deprecation")
   public void configure(org.apache.http.impl.client.DefaultHttpClient httpClient, SolrParams config) {
     super.configure(httpClient, config);
-    if (System.getProperty(LOGIN_CONFIG_PROP) != null) {
-      String configValue = System.getProperty(LOGIN_CONFIG_PROP);
+    if (System.getProperty(FUSION_LOGIN_CONFIG) != null) {
+      String configValue = System.getProperty(FUSION_LOGIN_CONFIG);
       if (configValue != null) {
         logger.debug("Setting up kerberos auth with config: " + configValue);
         System.setProperty("javax.security.auth.useSubjectCredsOnly", "false");
-
         if (fusionPrincipal != null) {
           Subject subject = new Subject(false, Sets.newHashSet(new KerberosPrincipal(fusionPrincipal)),
               Collections.emptySet(), Collections.emptySet());
@@ -126,7 +127,7 @@ public class FusionKrb5HttpClientConfigurer extends HttpClientConfigurer {
         this.baseConfig = null;
       }
       if (this.baseConfig != null) {
-        String clientAppName = System.getProperty(LOGIN_APP_NAME, "FusionClient"); // FusionClient by default
+        String clientAppName = System.getProperty(FUSION_LOGIN_APP_NAME, "FusionClient"); // FusionClient by default
         this.globalAppConfigurationEntry = this.baseConfig.getAppConfigurationEntry(clientAppName);
       }
     }
@@ -150,7 +151,7 @@ public class FusionKrb5HttpClientConfigurer extends HttpClientConfigurer {
       if (this.baseConfig == null) {
         return null;
       } else {
-        FusionKrb5HttpClientConfigurer.logger.debug("Login prop: " + System.getProperty(LOGIN_CONFIG_PROP));
+        FusionKrb5HttpClientConfigurer.logger.debug("Login prop: " + System.getProperty(FUSION_LOGIN_CONFIG));
         if (fusionPrincipal == null) {
           FusionKrb5HttpClientConfigurer.logger.debug("fusionPrincipal is null using principal from JAAS file.");
           return globalAppConfigurationEntry;

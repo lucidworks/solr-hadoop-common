@@ -60,6 +60,8 @@ import java.util.Random;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static com.lucidworks.hadoop.fusion.Constants.FUSION_LOGIN_CONFIG;
+
 public class FusionPipelineClient {
 
   private static final Log log = LogFactory.getLog(FusionPipelineClient.class);
@@ -116,7 +118,7 @@ public class FusionPipelineClient {
     this.fusionPass = fusionPass;
     this.fusionRealm = fusionRealm;
 
-    String fusionLoginConf = System.getProperty(FusionKrb5HttpClientConfigurer.LOGIN_CONFIG_PROP);
+    String fusionLoginConf = System.getProperty(FUSION_LOGIN_CONFIG);
     if (fusionLoginConf != null && !fusionLoginConf.isEmpty()) {
       httpClient = FusionKrb5HttpClientConfigurer.createClient(fusionUser);
       isKerberos = true;

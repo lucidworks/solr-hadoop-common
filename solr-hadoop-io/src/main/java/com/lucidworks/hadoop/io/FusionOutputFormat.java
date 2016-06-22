@@ -25,6 +25,8 @@ import java.util.concurrent.TimeUnit;
 
 import static com.lucidworks.hadoop.fusion.Constants.FUSION_AUTHENABLED;
 import static com.lucidworks.hadoop.fusion.Constants.FUSION_INDEX_ENDPOINT;
+import static com.lucidworks.hadoop.fusion.Constants.FUSION_LOGIN_APP_NAME;
+import static com.lucidworks.hadoop.fusion.Constants.FUSION_LOGIN_CONFIG;
 import static com.lucidworks.hadoop.fusion.Constants.FUSION_PASS;
 import static com.lucidworks.hadoop.fusion.Constants.FUSION_REALM;
 import static com.lucidworks.hadoop.fusion.Constants.FUSION_USER;
@@ -51,6 +53,16 @@ public class FusionOutputFormat implements OutputFormat<Text, LWDocumentWritable
       String fusionPass = job.get(FUSION_PASS);
       String fusionRealm = job.get(FUSION_REALM);
       String endpoints = job.get(FUSION_INDEX_ENDPOINT);
+
+      String fusionLoginConfig = job.get(FUSION_LOGIN_CONFIG);
+      if (fusionLoginConfig != null) {
+        System.setProperty(FUSION_LOGIN_CONFIG, fusionLoginConfig);
+      }
+
+      String fusionLoginAppName =  job.get(FUSION_LOGIN_APP_NAME);
+      if (fusionLoginAppName != null) {
+        System.setProperty(FUSION_LOGIN_APP_NAME, fusionLoginAppName);
+      }
 
       Reporter reporter = null;
       if (progressable instanceof Reporter) {

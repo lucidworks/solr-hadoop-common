@@ -23,6 +23,8 @@ import java.util.List;
 import java.util.Set;
 
 import static com.lucidworks.hadoop.fusion.Constants.FUSION_AUTHENABLED;
+import static com.lucidworks.hadoop.fusion.Constants.FUSION_LOGIN_APP_NAME;
+import static com.lucidworks.hadoop.fusion.Constants.FUSION_LOGIN_CONFIG;
 import static com.lucidworks.hadoop.fusion.Constants.FUSION_PASS;
 import static com.lucidworks.hadoop.fusion.Constants.FUSION_QUERY;
 import static com.lucidworks.hadoop.fusion.Constants.FUSION_QUERY_ENDPOINT;
@@ -187,6 +189,16 @@ public class FusionInputFormat implements InputFormat<IntWritable, LWDocumentWri
     String fusionPass = job.get(FUSION_PASS);
     String fusionRealm = job.get(FUSION_REALM);
     String fusionQuery = job.get(FUSION_QUERY, "*:*");
+
+    String fusionLoginConfig = job.get(FUSION_LOGIN_CONFIG);
+    if (fusionLoginConfig != null) {
+      System.setProperty(FUSION_LOGIN_CONFIG, fusionLoginConfig);
+    }
+
+    String fusionLoginAppName =  job.get(FUSION_LOGIN_APP_NAME);
+    if (fusionLoginAppName != null) {
+      System.setProperty(FUSION_LOGIN_APP_NAME, fusionLoginAppName);
+    }
 
     // One query endpoint per client
     QueryPipelineClient queryClient = fusionAuthEnabled
