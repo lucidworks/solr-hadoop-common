@@ -23,13 +23,23 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
+import static com.lucidworks.hadoop.fusion.Constants.BATCH_ID_FIELD;
+import static com.lucidworks.hadoop.fusion.Constants.DATA_SOURCE_COLLECTION_FIELD;
+import static com.lucidworks.hadoop.fusion.Constants.DATA_SOURCE_FIELD;
+import static com.lucidworks.hadoop.fusion.Constants.DATA_SOURCE_PIPELINE_FIELD;
+import static com.lucidworks.hadoop.fusion.Constants.DATA_SOURCE_TYPE_FIELD;
 import static com.lucidworks.hadoop.fusion.Constants.FUSION_AUTHENABLED;
+import static com.lucidworks.hadoop.fusion.Constants.FUSION_BATCHID;
+import static com.lucidworks.hadoop.fusion.Constants.FUSION_DATASOURCE;
+import static com.lucidworks.hadoop.fusion.Constants.FUSION_DATASOURCE_PIPELINE;
+import static com.lucidworks.hadoop.fusion.Constants.FUSION_DATASOURCE_TYPE;
 import static com.lucidworks.hadoop.fusion.Constants.FUSION_INDEX_ENDPOINT;
 import static com.lucidworks.hadoop.fusion.Constants.FUSION_LOGIN_APP_NAME;
 import static com.lucidworks.hadoop.fusion.Constants.FUSION_LOGIN_CONFIG;
 import static com.lucidworks.hadoop.fusion.Constants.FUSION_PASS;
 import static com.lucidworks.hadoop.fusion.Constants.FUSION_REALM;
 import static com.lucidworks.hadoop.fusion.Constants.FUSION_USER;
+import static com.lucidworks.hadoop.fusion.Constants.UNKNOWN;
 
 public class FusionOutputFormat implements OutputFormat<Text, LWDocumentWritable> {
 
@@ -40,6 +50,7 @@ public class FusionOutputFormat implements OutputFormat<Text, LWDocumentWritable
     private final FusionPipelineClient fusionPipelineClient;
     private final Progressable progressable;
     private final DocBuffer docBuffer;
+    private Configuration jobConf;
 
     public FusionRecordWriter(Configuration job, String name, Progressable progressable) throws IOException {
       this.progressable = progressable;
@@ -48,6 +59,7 @@ public class FusionOutputFormat implements OutputFormat<Text, LWDocumentWritable
       long bufferTimeoutMs = Long.parseLong(job.get("fusion.buffer.timeoutms", "1000"));
       this.docBuffer = new DocBuffer(batchSize, bufferTimeoutMs);
 
+      this.jobConf = job;
       boolean fusionAuthEnabled = "true".equals(job.get(FUSION_AUTHENABLED, "true"));
       String fusionUser = job.get(FUSION_USER);
       String fusionPass = job.get(FUSION_PASS);
@@ -59,7 +71,7 @@ public class FusionOutputFormat implements OutputFormat<Text, LWDocumentWritable
         System.setProperty(FUSION_LOGIN_CONFIG, fusionLoginConfig);
       }
 
-      String fusionLoginAppName =  job.get(FUSION_LOGIN_APP_NAME);
+      String fusionLoginAppName = job.get(FUSION_LOGIN_APP_NAME);
       if (fusionLoginAppName != null) {
         System.setProperty(FUSION_LOGIN_APP_NAME, fusionLoginAppName);
       }
@@ -100,8 +112,9 @@ public class FusionOutputFormat implements OutputFormat<Text, LWDocumentWritable
     protected Map<String, Object> doc2json(SolrInputDocument solrDoc) {
       Map<String, Object> json = new HashMap<String, Object>();
       String docId = (String) solrDoc.getFieldValue("id");
-      if (docId == null)
+      if (docId == null) {
         throw new IllegalStateException("Couldn't resolve the id for document: " + solrDoc);
+      }
       json.put("id", docId);
 
       List fields = new ArrayList();
@@ -110,9 +123,12 @@ public class FusionOutputFormat implements OutputFormat<Text, LWDocumentWritable
           appendField(solrDoc, f, null, fields);
         }
       }
-      // keep track of the time we saw this doc on the hbase side
+      // keep track of the time we saw this doc on hadoop side
       String tdt = DateUtil.getThreadLocalDateFormat().format(new Date());
       fields.add(mapField("_hadoop_tdt", null, tdt));
+
+      // Adds some fields for fusion
+      addFusionFieldsIfNeeded(fields);
 
       json.put("fields", fields);
       return json;
@@ -161,6 +177,18 @@ public class FusionOutputFormat implements OutputFormat<Text, LWDocumentWritable
         }
       }
       fusionPipelineClient.shutdown();
+    }
+
+    private void addFusionFieldsIfNeeded(List fields) {
+      String datasource = jobConf.get(FUSION_DATASOURCE);
+      if (datasource != null && !datasource.isEmpty()) {
+        fields.add(mapField(DATA_SOURCE_FIELD, null, datasource));
+        fields.add(mapField(DATA_SOURCE_COLLECTION_FIELD, null,
+            jobConf.get(LucidWorksWriter.SOLR_COLLECTION, UNKNOWN)));
+        fields.add(mapField(DATA_SOURCE_PIPELINE_FIELD, null, jobConf.get(FUSION_DATASOURCE_PIPELINE, UNKNOWN)));
+        fields.add(mapField(DATA_SOURCE_TYPE_FIELD, null, jobConf.get(FUSION_DATASOURCE_TYPE, UNKNOWN)));
+        fields.add(mapField(BATCH_ID_FIELD, null, jobConf.get(FUSION_BATCHID, UNKNOWN)));
+      }
     }
   } // end FusionRecordWriter class
 

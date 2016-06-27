@@ -17,4 +17,19 @@ public final class Constants {
   public static final String FUSION_LOGIN_CONFIG = "java.security.auth.login.config";
   public static final String FUSION_LOGIN_APP_NAME = "fusion.jaas.appname";
 
+  // Fusion fields
+  public static final String LW_PREFIX = "_lw_";
+  public static final String BATCH_ID_FIELD = LW_PREFIX + "batch_id_s";
+  public static final String DATA_SOURCE_FIELD = LW_PREFIX + "data_source_s";
+  public static final String DATA_SOURCE_TYPE_FIELD = LW_PREFIX + "data_source_type_s";
+  public static final String DATA_SOURCE_PIPELINE_FIELD = LW_PREFIX + "data_source_pipeline_s";
+  public static final String DATA_SOURCE_COLLECTION_FIELD = LW_PREFIX + "data_source_collection_s";
+
+  // Fusion properties
+  public static final String FUSION_BATCHID = "batchid";
+  public static final String FUSION_DATASOURCE = "datasource";
+  public static final String FUSION_DATASOURCE_TYPE = "datasource.type";
+  public static final String FUSION_DATASOURCE_PIPELINE = "datasource.pipeline";
+  public static final String UNKNOWN = "__unknown__";
+
 }
