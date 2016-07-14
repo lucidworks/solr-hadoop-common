@@ -24,7 +24,7 @@ import java.util.TimeZone;
 
 public class LWSolrDocument implements LWDocument {
 
-  private static final String RAW_CONTENT = "_raw_content_bin";
+  private static final String RAW_CONTENT = "_raw_content_";
   private static final String ID = "id";
   private static final String DUMMY_HOLDER = "--NA--";
   private transient static Logger log = LoggerFactory.getLogger(LWSolrDocument.class);
@@ -158,9 +158,6 @@ public class LWSolrDocument implements LWDocument {
 
   @Override
   public void setContent(byte[] data) {
-    // TODO: check error: ie data to big?
-    // XXX: in proccess function?
-    TikaParsing.parseLWSolrDocument(this, data);
     document.addField(RAW_CONTENT, data);
   }
 
