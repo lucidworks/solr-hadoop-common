@@ -25,3 +25,8 @@ Provides the class `SolrCloudClusterSupport` as the basis of most tests that nee
 The `SolrCloudClusterSupport` creates a `MiniSolrCloudCluster` in order to test the application.
 
 `LWMockDocument` is a mock Document to test the Solr indexing workflow.
+
+== solr-hadoop-tika
+
+Basic tika processing (more in DirectoryMapperIngest)
+
