@@ -38,10 +38,7 @@ public class LucidWorksWriterTest extends SolrCloudClusterSupport {
     conf.set("lww.commit.on.close", "true");
     conf.setBoolean("lw.annotations", true);
     conf.setBoolean("lw.metadata", true);
-    conf.set("solr.f.junk_annot_1_s",
-        "foo.annot_1");//map the annot_1 feature of foo annotation to the junk_annot_1_s field
-    //conf.set(COLLECTION, "collection1");
-
+    conf.set("solr.f.junk_annot_1_s", "foo.annot_1");
     lucidWorksWriter.open(conf, "name");
 
     lucidWorksWriter.write(new Text("text"), LucidWorksWriterTest

@@ -240,7 +240,6 @@ public class LWMapRedInputFormat implements InputFormat<IntWritable, LWDocumentW
 
   @Override
   public InputSplit[] getSplits(JobConf job, int numSplits) throws IOException {
-    LWDocumentProvider.configure(job);
     this.conf = job;
     boolean isZk = false;
     String connectionUri = job.get(SOLR_ZKHOST);

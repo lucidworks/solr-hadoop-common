@@ -22,7 +22,6 @@ public class LWMapReduceOutputFormat extends OutputFormat<Text, LWDocumentWritab
   @Override
   public RecordWriter<Text, LWDocumentWritable> getRecordWriter(TaskAttemptContext context)
       throws IOException, InterruptedException {
-    LWDocumentProvider.configure((JobConf) context.getConfiguration());
     final LucidWorksWriter writer = new LucidWorksWriter(context);
     writer.open(context.getConfiguration(), context.getJobName());
     return new RecordWriter<Text, LWDocumentWritable>() {
@@ -67,7 +66,6 @@ public class LWMapReduceOutputFormat extends OutputFormat<Text, LWDocumentWritab
       @Override
       public void commitTask(TaskAttemptContext context) throws IOException {
         //get a new writer and force a commit then close it
-        LWDocumentProvider.configure((JobConf) context.getConfiguration());
         LucidWorksWriter writer = new LucidWorksWriter(context);
         writer.open(context.getConfiguration(), context.getJobName());
 

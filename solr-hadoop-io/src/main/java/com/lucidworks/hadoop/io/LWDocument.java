@@ -9,35 +9,30 @@ import org.apache.solr.common.SolrInputDocument;
 
 public interface LWDocument {
 
-  public LWDocument[] process();
+  void setId(String id);
 
-  public void configure(JobConf conf);
+  String getId();
 
-  public void init(JobConf conf);
+  void setMetadata(Map<String, String> metadata);
 
-  public void setId(String id);
+  Map<String, String> getMetadata();
 
-  public String getId();
+  void write(DataOutput dataOutput) throws IOException;
 
-  public void setMetadata(Map<String, String> metadata);
+  void readFields(DataInput dataInput) throws IOException;
 
-  public Map<String, String> getMetadata();
+  void setContent(byte[] data);
 
-  public void write(DataOutput dataOutput) throws IOException;
+  LWDocument addField(String name, Object value);
 
-  public void readFields(DataInput dataInput) throws IOException;
+  LWDocument removeField(String name);
 
-  public void setContent(byte[] data);
-
-  public LWDocument addField(String name, Object value);
-
-  public LWDocument addMetadata(String name, String value);
+  LWDocument addMetadata(String name, String value);
 
   /* Check if the document has multiple id fields, use one of them or the missingId argument., */
-  public LWDocument checkId(String idField, String missingId);
+  LWDocument checkId(String idField, String missingId);
 
-  public Object getFirstFieldValue(String name);
+  Object getFirstFieldValue(String name);
 
-  public SolrInputDocument convertToSolr();
-
+  SolrInputDocument convertToSolr();
 }

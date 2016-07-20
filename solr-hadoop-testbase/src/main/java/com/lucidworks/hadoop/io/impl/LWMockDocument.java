@@ -1,7 +1,6 @@
 package com.lucidworks.hadoop.io.impl;
 
 import com.lucidworks.hadoop.io.LWDocument;
-import org.apache.hadoop.mapred.JobConf;
 import org.apache.solr.common.SolrInputDocument;
 
 import java.io.DataInput;
@@ -37,21 +36,6 @@ public class LWMockDocument implements LWDocument {
   }
 
   @Override
-  public LWDocument[] process() {
-    return new LWDocument[]{document};
-  }
-
-  @Override
-  public void configure(JobConf conf) {
-
-  }
-
-  @Override
-  public void init(JobConf conf) {
-
-  }
-
-  @Override
   public void setId(String id) {
     document.setId(id);
   }
@@ -80,6 +64,11 @@ public class LWMockDocument implements LWDocument {
   public LWDocument addField(String name, Object value) {
     document.addField(name, value);
     return this;
+  }
+
+  @Override
+  public LWDocument removeField(String name) {
+    return document.removeField(name);
   }
 
   @Override

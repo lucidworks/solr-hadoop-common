@@ -1,10 +1,8 @@
 package com.lucidworks.hadoop.tika;
 
-import com.lucidworks.hadoop.io.impl.LWSolrDocument;
-import  com.lucidworks.hadoop.io.impl.TikaProcess;
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
-import java.io.InputStream;
+import com.lucidworks.hadoop.io.LWDocument;
+import com.lucidworks.hadoop.process.TikaProcess;
+
 import org.apache.tika.exception.TikaException;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.parser.AutoDetectParser;
@@ -17,6 +15,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.xml.sax.ContentHandler;
 import org.xml.sax.SAXException;
+
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.InputStream;
 
 // basic tika parsing: this class needs more work, dynamic fields/ check errors ...
 public class TikaParsing implements TikaProcess {
@@ -32,6 +34,8 @@ public class TikaParsing implements TikaProcess {
   public static final String TIKA_ADD_ORIGINAL_CONTENT = "default.add.original.content";
   public static final String FIELD_MAPPING_RENAME_UNKNOWN = "default.rename.unknown";
 
+  private static final String RAW_CONTENT = "_raw_content_";
+
   public static boolean includeImages = false;
   public static boolean flattenCompound = false;
   public static boolean addFailedDocs = false;
@@ -40,7 +44,9 @@ public class TikaParsing implements TikaProcess {
 
   public static int MAX_TERM_LENGTH_UTF = 32766;
 
-  public void parseLWSolrDocument(LWSolrDocument document, byte[] data) {
+  private static void parseLWSolrDocument(
+    LWDocument document,
+    byte[] data) {
     ContentHandler text = new BodyContentHandler();
     InputStream input = new ByteArrayInputStream(data);
     Metadata metadata = new Metadata();
@@ -84,4 +90,13 @@ public class TikaParsing implements TikaProcess {
     }
   }
 
+  @Override
+  public LWDocument[] tikaParsing(LWDocument document) {
+    Object raw = document.getFirstFieldValue(RAW_CONTENT);
+    if (raw instanceof byte[]) {
+      parseLWSolrDocument(document, (byte[]) raw);
+    }
+    document.removeField(RAW_CONTENT);
+    return new LWDocument[]{document};
+  }
 }
