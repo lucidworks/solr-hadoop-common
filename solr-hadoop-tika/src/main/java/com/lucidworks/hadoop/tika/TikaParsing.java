@@ -1,6 +1,7 @@
-package com.lucidworks.hadoop.io.impl.tika;
+package com.lucidworks.hadoop.tika;
 
 import com.lucidworks.hadoop.io.impl.LWSolrDocument;
+import  com.lucidworks.hadoop.io.impl.TikaProcess;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -17,8 +18,8 @@ import org.slf4j.LoggerFactory;
 import org.xml.sax.ContentHandler;
 import org.xml.sax.SAXException;
 
-// basic tika parsing
-public class TikaParsing {
+// basic tika parsing: this class needs more work, dynamic fields/ check errors ...
+public class TikaParsing implements TikaProcess {
   private transient static Logger log = LoggerFactory.getLogger(TikaParsing.class);
 
   private static Parser parser = new AutoDetectParser();
@@ -37,10 +38,9 @@ public class TikaParsing {
   public static boolean addOriginalContent = false;
   public static boolean renameUnknown = false;
 
-  // org.apache.lucene.index.DocumentsWriterPerThread.MAX_TERM_LENGTH_UTF = 32766
   public static int MAX_TERM_LENGTH_UTF = 32766;
 
-  public static void parseLWSolrDocument(LWSolrDocument document, byte[] data) {
+  public void parseLWSolrDocument(LWSolrDocument document, byte[] data) {
     ContentHandler text = new BodyContentHandler();
     InputStream input = new ByteArrayInputStream(data);
     Metadata metadata = new Metadata();

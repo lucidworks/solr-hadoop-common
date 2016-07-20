@@ -1,7 +1,7 @@
 package com.lucidworks.hadoop.io.impl;
 
 import com.lucidworks.hadoop.io.LWDocument;
-import com.lucidworks.hadoop.io.impl.tika.TikaParsing;
+
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.solr.common.SolrInputDocument;
@@ -24,10 +24,16 @@ import java.util.TimeZone;
 
 public class LWSolrDocument implements LWDocument {
 
-  private static final String RAW_CONTENT = "_raw_content_";
+  public static final String RAW_CONTENT = "_raw_content_";
+  private static final String TIKAPARSINGG_CLASS = "com.lucidworks.hadoop.tika.TikaParsing";
+  public static final String TIKA_PROCESS = "lw.tika.process";
+
   private static final String ID = "id";
   private static final String DUMMY_HOLDER = "--NA--";
   private transient static Logger log = LoggerFactory.getLogger(LWSolrDocument.class);
+
+  private boolean tikaProcess = false;
+  private TikaProcess tika = null;
 
   private SolrInputDocument document;
   private static final ObjectMapper objectMapper = createMapper();
@@ -38,11 +44,27 @@ public class LWSolrDocument implements LWDocument {
 
   @Override
   public LWDocument[] process() {
+    if (tikaProcess && tika != null) {
+      Object raw = document.getFieldValue(RAW_CONTENT);
+      if (raw instanceof byte[]) {
+        tika.parseLWSolrDocument(this, (byte[]) raw);
+      }
+    }
     return new LWDocument[]{this};
   }
 
   @Override
+  @SuppressWarnings("unchecked")
   public void configure(JobConf conf) {
+    tikaProcess = conf.getBoolean(TIKA_PROCESS, false);
+    // load tika parsing class
+    Class<TikaProcess> tikaClass = null;
+    try {
+      tikaClass = (Class<TikaProcess>) Class.forName(TIKAPARSINGG_CLASS);
+      tika = tikaClass.newInstance();
+    } catch (ClassNotFoundException | IllegalAccessException | InstantiationException e) {
+      throw new RuntimeException(e);
+    }
   }
 
   @Override
