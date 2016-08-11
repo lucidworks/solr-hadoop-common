@@ -1,6 +1,23 @@
 package com.lucidworks.hadoop.io;
 
 import com.lucidworks.hadoop.security.SolrSecurity;
+
+import org.apache.commons.httpclient.NoHttpResponseException;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.net.ConnectTimeoutException;
+import org.apache.hadoop.util.Progressable;
+import org.apache.solr.client.solrj.SolrClient;
+import org.apache.solr.client.solrj.SolrServerException;
+import org.apache.solr.client.solrj.impl.CloudSolrClient;
+import org.apache.solr.client.solrj.impl.ConcurrentUpdateSolrClient;
+import org.apache.solr.client.solrj.request.UpdateRequest;
+import org.apache.solr.common.SolrException;
+import org.apache.solr.common.SolrInputDocument;
+import org.apache.solr.common.params.ModifiableSolrParams;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 import java.net.ConnectException;
 import java.net.SocketException;
@@ -10,20 +27,6 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Map.Entry;
-import org.apache.commons.httpclient.ConnectTimeoutException;
-import org.apache.commons.httpclient.NoHttpResponseException;
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.io.Text;
-import org.apache.hadoop.util.Progressable;
-import org.apache.solr.client.solrj.SolrClient;
-import org.apache.solr.client.solrj.SolrServerException;
-import org.apache.solr.client.solrj.impl.CloudSolrClient;
-import org.apache.solr.client.solrj.impl.ConcurrentUpdateSolrClient;
-import org.apache.solr.client.solrj.request.UpdateRequest;
-import org.apache.solr.common.SolrInputDocument;
-import org.apache.solr.common.params.ModifiableSolrParams;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class LucidWorksWriter {
 
@@ -178,7 +181,7 @@ public class LucidWorksWriter {
     fieldMapping.put(annotationName, featureMap);
 
     log.info("Adding mapping for annotation " + annotationName +
-        ", feature '" + featureName + "' to  Solr field '" + solrFieldName + "'");
+      ", feature '" + featureName + "' to  Solr field '" + solrFieldName + "'");
   }
 
   public void write(Text text, LWDocumentWritable doc) throws IOException {
@@ -190,44 +193,47 @@ public class LucidWorksWriter {
         progress.progress();
         sendBuffer();
       }
-    } catch (SolrServerException e) {
+    } catch (Exception e) {
+      log.info("Enter retry logic with Exception ... " , e);
       maybeRetry(e);
     }
   }
 
-  protected void maybeRetry(SolrServerException e) throws IOException {
-    Throwable rootCause = e.getRootCause();
-    if (rootCause instanceof ConnectException || rootCause instanceof ConnectTimeoutException ||
-        rootCause instanceof NoHttpResponseException ||
-        rootCause instanceof SocketException) {
-      try {
-        Thread.sleep(sleep);
-      } catch (InterruptedException e1) {
-      }
-      boolean sent = false;
-      for (int i = 0; i < maxRetries; i++) {
-        try {
-          sendBuffer();
-          //success
-          sent = true;
-          break;
-
-        } catch (SolrServerException e1) {
-          try {
-            Thread.sleep(i * sleep);
-          } catch (InterruptedException e2) {
-          }
-        }
-      }
-      if (sent == false) {
-        throw makeIOException(e);
-      }
-    } else {
-      throw makeIOException(e);
-    }
+  private void maybeRetry(Exception exc) throws IOException {
+    maybeRetry(exc, 0);
   }
 
-  protected void sendBuffer() throws SolrServerException, IOException {
+  private void maybeRetry(Exception exc, int times) throws IOException {
+    Throwable rootCause = SolrException.getRootCause(exc);
+    boolean wasCommonError = (rootCause instanceof ConnectException || rootCause instanceof ConnectTimeoutException ||
+      rootCause instanceof NoHttpResponseException || rootCause instanceof SocketException);
+    if (!wasCommonError) {
+      // it was not a common exception just throw it.
+      log.error("Not retying got {}", exc);
+      throw makeIOException(exc);
+    }
+    if (times >= maxRetries) {
+      log.info("Max retries reach trowing the exception ... ", exc);
+      throw makeIOException(exc);
+    }
+    try {
+      Thread.sleep(sleep * times);
+    } catch (InterruptedException e) {
+      // ignore
+    }
+    try {
+      times++;
+      log.info("maybeRetry: Retrying " + times + " times.");
+      sendBuffer();
+      //success
+    } catch (Exception e) {
+      log.info("Failed again retrying ..." , e);
+      maybeRetry(e, times);
+    }
+
+  }
+
+  private void sendBuffer() throws SolrServerException, IOException {
     log.info("Sending {} documents", buffer.size());
     //flush the buffer
     if (params == null) {
@@ -249,7 +255,7 @@ public class LucidWorksWriter {
   public void close() throws IOException {
     log.info("Closing the Writer");
     try {
-      if (buffer.isEmpty() == false) {
+      if (!buffer.isEmpty()) {
         try {
           sendBuffer();
           if (solr instanceof ConcurrentUpdateSolrClient) {
@@ -257,22 +263,22 @@ public class LucidWorksWriter {
             ((ConcurrentUpdateSolrClient) solr).blockUntilFinished();
           }
           log.info("Done sending docs");
-
-        } catch (SolrServerException e) {
+        } catch (Exception e) {
+          log.info("Enter retry logic with Exception {}" , e);
           maybeRetry(e);
         }
       }
-      if (commitOnClose == true) {
+      if (commitOnClose) {
         log.info("Sending commit");
         solr.commit(false, false);
       }
       solr.close();
-    } catch (final SolrServerException e) {
+    } catch (final Exception e) {
       throw makeIOException(e);
     }
   }
 
-  public static IOException makeIOException(SolrServerException e) {
+  private static IOException makeIOException(Exception e) {
     final IOException ioe = new IOException();
     ioe.initCause(e);
     return ioe;
@@ -282,7 +288,7 @@ public class LucidWorksWriter {
     if (solr == null) {
       throw new SolrServerException("Solr server does not exist");
     } else {
-      // Sending ping request. 
+      // Sending ping request.
       solr.ping();
     }
   }

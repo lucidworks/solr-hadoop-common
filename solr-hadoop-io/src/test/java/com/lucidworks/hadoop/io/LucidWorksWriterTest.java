@@ -4,6 +4,7 @@ import com.lucidworks.hadoop.io.impl.LWMockDocument;
 import com.lucidworks.hadoop.utils.SolrCloudClusterSupport;
 import java.io.IOException;
 import java.net.SocketException;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.hadoop.conf.Configuration;
@@ -12,7 +13,10 @@ import org.apache.hadoop.util.Progressable;
 import org.apache.solr.client.solrj.SolrClient;
 import org.apache.solr.client.solrj.SolrRequest;
 import org.apache.solr.client.solrj.SolrServerException;
+import org.apache.solr.client.solrj.impl.CloudSolrClient;
 import org.apache.solr.client.solrj.impl.HttpSolrClient;
+import org.apache.solr.client.solrj.response.UpdateResponse;
+import org.apache.solr.common.SolrInputDocument;
 import org.apache.solr.common.util.NamedList;
 import org.junit.Before;
 import org.junit.Test;
@@ -75,17 +79,45 @@ public class LucidWorksWriterTest extends SolrCloudClusterSupport {
   }
 
   @Test
-  public void testRetry() throws Exception {
+  public void testManyDocs() throws IOException, SolrServerException {
     MockProgressable progressable = new MockProgressable();
     LucidWorksWriter lucidWorksWriter = new LucidWorksWriter(progressable);
     Configuration conf = new Configuration();
     conf.set(LucidWorksWriter.SOLR_ZKHOST, getBaseUrl());
     conf.set("lww.commit.on.close", "true");
-    //conf.set(COLLECTION, "collection1");
+    lucidWorksWriter.open(conf, "name");
+    //make sure we trigger the buffering and have left overs
+    int totalDocs = 5051;
+    for (int counter = 0; counter < totalDocs; counter++) {
+      lucidWorksWriter.write(new Text("text-" + counter), LucidWorksWriterTest
+        .createLWDocumentWritable("id-" + counter, "field-1", "field-value-1", "field-2",
+          "field-value-2", "field-3", "field-value-3"));
+
+    }
+    lucidWorksWriter.close();
+    assertCount("*:*", totalDocs);
+  }
+
+  @Test
+  public void testRetry() throws Exception {
+    MockProgressable progressable = new MockProgressable();
+
+    // Max retries
+    int max = 10;
+
+    // wrapping SolrCloud
+    SolrClient fakeServer = new FakeRetrySolrServer(getBaseUrl(), false, max);
+    LucidWorksWriter lucidWorksWriter = new LucidWorksWriter(fakeServer, progressable);
+    Configuration conf = new Configuration();
+    conf.set(LucidWorksWriter.SOLR_ZKHOST, getBaseUrl());
+    conf.set("lww.commit.on.close", "true");
     conf.setInt("lww.retry.sleep.time", 1);//make the sleep really short
+    conf.setInt("lww.buffer.docs.size", 1000);
+    conf.setInt("lww.max.retries", max);
+
     lucidWorksWriter.open(conf, "name");
     //make sure we trigger the buffering
-    int totalDocs = 5000;
+    int totalDocs = 5001;
     for (int counter = 0; counter < totalDocs; counter++) {
       lucidWorksWriter.write(new Text("text-" + counter), LucidWorksWriterTest
           .createLWDocumentWritable("id-" + counter, "field-1", "field-value-1", "field-2",
@@ -97,45 +129,46 @@ public class LucidWorksWriterTest extends SolrCloudClusterSupport {
   }
 
   @Test(expected = IOException.class)
-  public void testFail() throws Exception {
+  public void testFailRetries() throws Exception {
     MockProgressable progressable = new MockProgressable();
-    SolrClient fakeServer = new FakeRetrySolrServer(new HttpSolrClient(getBaseUrl()), true);
+
+    // Max retries
+    int max = 10;
+    // wrapping SolrCloud
+    SolrClient fakeServer = new FakeRetrySolrServer(getBaseUrl(), false, max);
     LucidWorksWriter lucidWorksWriter = new LucidWorksWriter(fakeServer, progressable);
     Configuration conf = new Configuration();
     conf.set(LucidWorksWriter.SOLR_ZKHOST, getBaseUrl());
     conf.set("lww.commit.on.close", "true");
-    //conf.set(COLLECTION, "collection1");
-    conf.set("solr.params", "key1=val1&key2=val2");
     conf.setInt("lww.retry.sleep.time", 1);//make the sleep really short
+    conf.setInt("lww.buffer.docs.size", 1000);
+    // Less retries than failures in FakeRetrySolrServer
+    conf.setInt("lww.max.retries", max-1);
     lucidWorksWriter.open(conf, "name");
-    //try {
-    lucidWorksWriter.write(new Text("text-1"), LucidWorksWriterTest
-        .createLWDocumentWritable("id-1", "field-1", "field-value-1", "field-2", "field-value-2",
-            "field-3", "field-value-3"));
-    lucidWorksWriter.close();//close here
+    //make sure we trigger the buffering
+    int totalDocs = 5001;
+    for (int counter = 0; counter < totalDocs; counter++) {
+      lucidWorksWriter.write(new Text("text-" + counter), LucidWorksWriterTest
+        .createLWDocumentWritable("id-" + counter, "field-1", "field-value-1", "field-2",
+          "field-value-2", "field-3", "field-value-3"));
+
+    }
   }
 
-  @Test
-  public void testManyDocs() throws IOException, SolrServerException {
+  @Test(expected = IOException.class)
+  public void testFail() throws Exception {
     MockProgressable progressable = new MockProgressable();
-    LucidWorksWriter lucidWorksWriter = new LucidWorksWriter(progressable);
-
+    SolrClient fakeServer = new FakeRetrySolrServer(getBaseUrl(), true, 3);
+    LucidWorksWriter lucidWorksWriter = new LucidWorksWriter(fakeServer, progressable);
     Configuration conf = new Configuration();
     conf.set(LucidWorksWriter.SOLR_ZKHOST, getBaseUrl());
     conf.set("lww.commit.on.close", "true");
-    //conf.set(COLLECTION, "collection1");
+    conf.setInt("lww.buffer.docs.size", 1); // buffer size small
+    conf.setInt("lww.retry.sleep.time", 1);//make the sleep really short
+
     lucidWorksWriter.open(conf, "name");
-    //make sure we trigger the buffering and have left overs
-    int totalDocs = 5051;
-    for (int counter = 0; counter < totalDocs; counter++) {
-      lucidWorksWriter.write(new Text("text-" + counter), LucidWorksWriterTest
-              .createLWDocumentWritable("id-" + counter, "field-1", "field-value-1", "field-2",
-                  "field-value-2", "field-3", "field-value-3"));
-
-    }
-    lucidWorksWriter.close();
-    assertCount("*:*", totalDocs);
-
+      lucidWorksWriter.write(new Text("text-1"), LucidWorksWriterTest
+        .createLWDocumentWritable("id-1", "field-1", "field-value-1", "field-2", "field-value-2", "field-3", "field-value-3"));
   }
 
   public class MockProgressable implements Progressable {
@@ -151,26 +184,39 @@ public class LucidWorksWriterTest extends SolrCloudClusterSupport {
     private final SolrClient delegate;
     int calls = 0;
     private boolean alwaysFail;
+    int retries;
 
-    public FakeRetrySolrServer(SolrClient server, boolean alwaysFail) {
-      this.delegate = server;
+    public FakeRetrySolrServer(String zkString, boolean alwaysFail, int retries) {
+      CloudSolrClient client  = new CloudSolrClient(zkString);
+      client.setDefaultCollection("collection1");
+      client.connect();
+      this.delegate = client;
       this.alwaysFail = alwaysFail;
+      this.retries = retries;
+    }
+
+    private void failRequest() throws SolrServerException, IOException {
+      if (alwaysFail) {
+        throw new SolrServerException("alwaysFail is true");
+      }
+      if (calls <= retries) {
+        throw new SocketException("fake socket exception to cause a retry");
+      }
     }
 
     @Override
     public NamedList<Object> request(SolrRequest request, String collection)
         throws SolrServerException, IOException {
-      if (alwaysFail) {
-        calls++;
-        throw new SolrServerException("alwaysFail is true");
-      }
-      if (calls < 2) {
-        Throwable cause = new SocketException("fake socket exception to cause a retry");
-        calls++;
-        throw new SolrServerException("calls = " + calls, cause);
-      }
       calls++;
+      failRequest();
       return delegate.request(request);
+    }
+
+    @Override
+    public UpdateResponse add(Collection<SolrInputDocument> docs) throws SolrServerException, IOException {
+      calls++;
+      failRequest();
+      return delegate.add(docs);
     }
 
     @Override
