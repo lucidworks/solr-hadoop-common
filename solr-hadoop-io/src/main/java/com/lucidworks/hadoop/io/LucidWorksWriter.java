@@ -194,7 +194,7 @@ public class LucidWorksWriter {
         sendBuffer();
       }
     } catch (Exception e) {
-      log.info("Enter retry logic with Exception ... " , e);
+      log.info("Enter retry logic with Exception" , e);
       maybeRetry(e);
     }
   }
@@ -209,11 +209,11 @@ public class LucidWorksWriter {
       rootCause instanceof NoHttpResponseException || rootCause instanceof SocketException);
     if (!wasCommonError) {
       // it was not a common exception just throw it.
-      log.error("Not retying got {}", exc);
+      log.error("Not retying got: ", exc);
       throw makeIOException(exc);
     }
     if (times >= maxRetries) {
-      log.info("Max retries reach trowing the exception ... ", exc);
+      log.info("Max retries reach: throwing the Exception", exc);
       throw makeIOException(exc);
     }
     try {
@@ -264,7 +264,7 @@ public class LucidWorksWriter {
           }
           log.info("Done sending docs");
         } catch (Exception e) {
-          log.info("Enter retry logic with Exception {}" , e);
+          log.info("Enter retry logic with Exception" , e);
           maybeRetry(e);
         }
       }
