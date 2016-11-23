@@ -17,6 +17,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
@@ -30,9 +31,12 @@ import static com.lucidworks.hadoop.fusion.Constants.DATA_SOURCE_PIPELINE_FIELD;
 import static com.lucidworks.hadoop.fusion.Constants.DATA_SOURCE_TYPE_FIELD;
 import static com.lucidworks.hadoop.fusion.Constants.FUSION_AUTHENABLED;
 import static com.lucidworks.hadoop.fusion.Constants.FUSION_BATCHID;
+import static com.lucidworks.hadoop.fusion.Constants.FUSION_BATCHSIZE;
+import static com.lucidworks.hadoop.fusion.Constants.FUSION_BUFFER_TIMEOUTMS;
 import static com.lucidworks.hadoop.fusion.Constants.FUSION_DATASOURCE;
 import static com.lucidworks.hadoop.fusion.Constants.FUSION_DATASOURCE_PIPELINE;
 import static com.lucidworks.hadoop.fusion.Constants.FUSION_DATASOURCE_TYPE;
+import static com.lucidworks.hadoop.fusion.Constants.FUSION_FAIL_ON_ERROR;
 import static com.lucidworks.hadoop.fusion.Constants.FUSION_INDEX_ENDPOINT;
 import static com.lucidworks.hadoop.fusion.Constants.FUSION_LOGIN_APP_NAME;
 import static com.lucidworks.hadoop.fusion.Constants.FUSION_LOGIN_CONFIG;
@@ -50,14 +54,17 @@ public class FusionOutputFormat implements OutputFormat<Text, LWDocumentWritable
     private final FusionPipelineClient fusionPipelineClient;
     private final Progressable progressable;
     private final DocBuffer docBuffer;
+    private final boolean failOnError;
     private Configuration jobConf;
 
     public FusionRecordWriter(Configuration job, String name, Progressable progressable) throws IOException {
       this.progressable = progressable;
 
-      int batchSize = Integer.parseInt(job.get("fusion.batchSize", "500"));
-      long bufferTimeoutMs = Long.parseLong(job.get("fusion.buffer.timeoutms", "1000"));
+      int batchSize = Integer.parseInt(job.get(FUSION_BATCHSIZE, "500"));
+      long bufferTimeoutMs = Long.parseLong(job.get(FUSION_BUFFER_TIMEOUTMS, "1000"));
       this.docBuffer = new DocBuffer(batchSize, bufferTimeoutMs);
+
+      this.failOnError = "true".equals(job.get(FUSION_FAIL_ON_ERROR, "false"));
 
       this.jobConf = job;
       boolean fusionAuthEnabled = "true".equals(job.get(FUSION_AUTHENABLED, "true"));
@@ -98,13 +105,26 @@ public class FusionOutputFormat implements OutputFormat<Text, LWDocumentWritable
           fusionPipelineClient.postBatchToPipeline(docBuffer.buffer);
           progressable.progress();
         } catch (Exception exc) {
-          if (exc instanceof IOException) {
-            throw (IOException) exc;
-          } else {
-            throw new IOException("Failed to send final batch to Fusion due to: " + exc, exc);
-          }
+          processWriteException(exc);
         } finally {
           docBuffer.reset();
+        }
+      }
+    }
+
+    private void processWriteException(Exception exc) throws IOException {
+      if(failOnError) {
+        if (exc instanceof IOException) {
+          throw (IOException) exc;
+        } else {
+          throw new IOException("Failed to send final batch to Fusion due to: " + exc, exc);
+        }
+      }
+      for (Object doc: docBuffer.buffer) {
+        try{
+          fusionPipelineClient.postBatchToPipeline(new ArrayList<>(Arrays.asList(doc)));
+        } catch (Exception excSingle) {
+          log.warn("Failed to send: " + doc);
         }
       }
     }
@@ -166,12 +186,7 @@ public class FusionOutputFormat implements OutputFormat<Text, LWDocumentWritable
         try {
           fusionPipelineClient.postBatchToPipeline(docBuffer.buffer);
         } catch (Exception exc) {
-          if (exc instanceof IOException) {
-            throw (IOException) exc;
-          } else {
-            throw new IOException("Failed to send final batch of " + docBuffer.buffer.size() + " docs to Fusion due " +
-                "to: " + exc, exc);
-          }
+          processWriteException(exc);
         } finally {
           docBuffer.reset();
         }

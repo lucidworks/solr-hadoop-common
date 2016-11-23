@@ -32,4 +32,8 @@ public final class Constants {
   public static final String FUSION_DATASOURCE_PIPELINE = "datasource.pipeline";
   public static final String UNKNOWN = "__unknown__";
 
+  // -D Args
+  public static final String FUSION_BATCHSIZE = "fusion.batchSize";
+  public static final String FUSION_BUFFER_TIMEOUTMS = "fusion.buffer.timeoutms";
+  public static final String FUSION_FAIL_ON_ERROR = "fusion.fail.on.error";
 }
