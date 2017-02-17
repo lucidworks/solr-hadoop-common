@@ -67,6 +67,11 @@ project(":solr-hadoop-common:solr-hadoop-tika") {
         zip64 true
         mergeServiceFiles()
         classifier = ''
+        relocate 'org.apache.commons.compress', 'shaded.org.apache.commons.compress'
+        relocate 'org.objectweb.asm', 'shaded.org.objectweb.asm'
+        relocate 'com.fasterxml.jackson', 'shaded.com.fasterxml.jackson'
+        relocate 'org.tukaani.xz', 'shaded.org.tukaani.xz'
+        relocate 'org.apache.commons.csv', 'shaded.org.apache.commons.csv'
     }
     dependencies {
         compile(project(':solr-hadoop-common:solr-hadoop-document')) {
