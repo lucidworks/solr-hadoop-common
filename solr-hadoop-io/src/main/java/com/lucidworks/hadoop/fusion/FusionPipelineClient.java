@@ -108,7 +108,6 @@ public class FusionPipelineClient {
     this(reporter, endpointUrl, null, null, null);
   }
 
-  @SuppressWarnings("deprecation")
   public FusionPipelineClient(Reporter reporter, String endpointUrl, String fusionUser, String fusionPass, String
       fusionRealm) throws
       MalformedURLException {
@@ -592,12 +591,15 @@ public class FusionPipelineClient {
     }
 
     if (fusionSession.solrClient == null) {
-      fusionSession.solrClient = new HttpSolrClient(endpoint, httpClient);
+      fusionSession.solrClient = new HttpSolrClient.Builder()
+          .withBaseSolrUrl(endpoint)
+          .withHttpClient(httpClient)
+          .build();
     }
-    QueryRequest qreq = new QueryRequest(query);
-    qreq.setResponseParser(new XMLResponseParser());
+    QueryRequest queryRequest = new QueryRequest(query);
+    queryRequest.setResponseParser(new XMLResponseParser());
     QueryResponse qr = new QueryResponse((SolrClient) fusionSession.solrClient);
-    qr.setResponse(fusionSession.solrClient.request(qreq));
+    qr.setResponse(fusionSession.solrClient.request(queryRequest));
     return qr;
   }
 

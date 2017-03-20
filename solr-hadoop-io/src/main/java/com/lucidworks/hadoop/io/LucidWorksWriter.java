@@ -71,7 +71,9 @@ public class LucidWorksWriter {
       String collection = job.get(SOLR_COLLECTION, "collection1");
       if (zkHost != null && !zkHost.equals("")) {
         log.info("Indexing to collection: " + collection + " w/ ZK host: " + zkHost);
-        solr = new CloudSolrClient(zkHost);
+        solr = new CloudSolrClient.Builder()
+            .withZkHost(zkHost)
+            .build();
         ((CloudSolrClient) solr).setDefaultCollection(collection);
         ((CloudSolrClient) solr).connect();
       } else {
@@ -82,7 +84,10 @@ public class LucidWorksWriter {
         solrURL += collection;
         int queueSize = job.getInt("solr.client.queue.size", 100);
         int threadCount = job.getInt("solr.client.threads", 1);
-        solr = new ConcurrentUpdateSolrClient(solrURL, queueSize, threadCount);
+        solr = new ConcurrentUpdateSolrClient.Builder(solrURL)
+            .withQueueSize(queueSize)
+            .withThreadCount(threadCount)
+            .build();
       }
     }
     String paramsString = job.get("solr.params");

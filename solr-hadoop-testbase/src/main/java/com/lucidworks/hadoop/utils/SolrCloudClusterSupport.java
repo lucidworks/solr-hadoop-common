@@ -9,17 +9,19 @@ import java.io.IOException;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.SortedMap;
-import java.util.TreeMap;
+
 import org.apache.log4j.Logger;
 import org.apache.solr.client.solrj.SolrQuery;
 import org.apache.solr.client.solrj.SolrServerException;
+import org.apache.solr.client.solrj.embedded.JettyConfig;
 import org.apache.solr.client.solrj.impl.CloudSolrClient;
+import org.apache.solr.client.solrj.request.CollectionAdminRequest;
 import org.apache.solr.client.solrj.request.QueryRequest;
 import org.apache.solr.client.solrj.response.QueryResponse;
 import org.apache.solr.client.solrj.response.SolrPingResponse;
@@ -36,12 +38,11 @@ import org.apache.solr.common.cloud.ZkStateReader;
 import org.apache.solr.common.params.CollectionParams;
 import org.apache.solr.common.params.CoreAdminParams;
 import org.apache.solr.common.params.ModifiableSolrParams;
-import org.eclipse.jetty.servlet.ServletHolder;
+import org.apache.solr.core.CoreDescriptor;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.noggit.CharArr;
 import org.noggit.JSONWriter;
-import org.restlet.ext.servlet.ServerServlet;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -57,32 +58,26 @@ public class SolrCloudClusterSupport {
 
   static final Logger log = Logger.getLogger(SolrCloudClusterSupport.class);
 
-  protected static MiniSolrCloudCluster cluster;
-  protected static CloudSolrClient cloudSolrServer;
-  public static Path TEMP_DIR;
-  public static final String DEFAULT_COLLECTION = "collection1";
+  private static MiniSolrCloudCluster cluster;
+  private static CloudSolrClient cloudSolrClient;
+  private static Path TEMP_DIR;
+  public static final String DEFAULT_COLLECTION = "default-collection";
+  public static final String DEFAULT_ZK_CONF = "default";
+
 
   @BeforeClass
   public static void startCluster() throws Exception {
     TEMP_DIR = Files.createTempDirectory("MiniSolrCloudCluster");
 
-    // need the schema stuff
-    final SortedMap<ServletHolder, String> extraServlets = new TreeMap<>();
-    final ServletHolder solrSchemaRestApi = new ServletHolder("SolrSchemaRestApi", ServerServlet.class);
-    solrSchemaRestApi.setInitParameter("org.restlet.application", "org.apache.solr.rest.SolrSchemaRestApi");
-    extraServlets.put(solrSchemaRestApi, "/schema/*");
+    JettyConfig.Builder jettyConfig = JettyConfig.builder();
+    jettyConfig.waitForLoadingCoresToFinish(null);
 
-    //cluster = new MiniSolrCloudCluster(1, null, TEMP_DIR, solrXml, extraServlets, null, null);
-    cluster = new MiniSolrCloudCluster(1, null, TEMP_DIR, MiniSolrCloudCluster.DEFAULT_CLOUD_SOLR_XML, extraServlets, null);
+    cluster = new MiniSolrCloudCluster(1, TEMP_DIR, jettyConfig.build());
+    cloudSolrClient = cluster.getSolrClient();
+    cloudSolrClient.connect();
+    assertTrue(!cloudSolrClient.getZkStateReader().getClusterState().getLiveNodes().isEmpty());
 
-
-
-    cloudSolrServer = new CloudSolrClient(cluster.getZkServer().getZkAddress(), true);
-    cloudSolrServer.setDefaultCollection("collection1");
-
-    cloudSolrServer.connect();
-    assertTrue(!cloudSolrServer.getZkStateReader().getClusterState().getLiveNodes().isEmpty());
-
+    uploadDefaultConfigSet();
     createDefaultCollection();
     verifyCluster();
     log.info("Start Solr Cluster");
@@ -90,10 +85,10 @@ public class SolrCloudClusterSupport {
 
   @AfterClass
   public static void stopCluster() throws Exception {
-    cloudSolrServer.close();
+    cloudSolrClient.close();
     cluster.shutdown();
 
-    // Delete TEMP_DIR contetnt
+    // Delete TEMP_DIR content
     Files.walkFileTree(TEMP_DIR, new SimpleFileVisitor<Path>() {
       @Override
       public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
@@ -111,51 +106,60 @@ public class SolrCloudClusterSupport {
 
     TEMP_DIR = null;
     cluster = null;
-    cloudSolrServer = null;
+    cloudSolrClient = null;
     log.info("Stop Solr Cluster");
   }
 
+  private static void uploadDefaultConfigSet() {
+    try {
+      Path confDir = Paths.get(ClassLoader.getSystemClassLoader().getResource("conf").toURI());
+      log.info(String.format("Adding default conf from [%s]", confDir));
+
+      cluster.uploadConfigSet(confDir, DEFAULT_ZK_CONF);
+    } catch (Exception e) {
+      log.error(String.format("Unable to upload default config set [%s]", e.getMessage()));
+    }
+  }
+
   private static void createDefaultCollection() throws Exception {
-    String confName = "testConfig";
-    File confDir = new File(ClassLoader.getSystemClassLoader().getResource("conf").getPath());
+    log.info("Creating default collection");
+    cloudSolrClient.setDefaultCollection(DEFAULT_COLLECTION);
     int numShards = 1;
     int replicationFactor = 1;
-
-    createCollection(DEFAULT_COLLECTION, numShards, replicationFactor, confName, confDir);
+    createCollection(DEFAULT_COLLECTION, numShards, replicationFactor);
   }
 
   private static void verifyCluster() throws IOException, SolrServerException {
     // Ping cluster to verify
-    SolrPingResponse response = cloudSolrServer.ping();
+    SolrPingResponse response = cloudSolrClient.ping();
     assertEquals(response.getStatus(), 0);
   }
 
   protected static void createCollection(String collectionName, int numShards,
-      int replicationFactor, String confName) throws Exception {
-    createCollection(collectionName, numShards, replicationFactor, confName, null);
+      int replicationFactor) throws Exception {
+    createCollection(collectionName, numShards, replicationFactor, DEFAULT_ZK_CONF, null);
   }
 
   protected static void createCollection(String collectionName, int numShards,
-      int replicationFactor, String confName, File confDir) throws Exception {
+      int replicationFactor, String configName, File confDir) throws Exception {
     if (confDir != null) {
       assertTrue("Specified Solr config directory '" +
           confDir.getAbsolutePath() + "' not found!", confDir.isDirectory());
 
       // upload the test configs
-      SolrZkClient zkClient = cloudSolrServer.getZkStateReader().getZkClient();
-      ZkConfigManager configManager = new ZkConfigManager(zkClient);
-      configManager.uploadConfigDir(confDir.toPath(), confName);
+      cluster.uploadConfigSet(confDir.toPath(), configName);
     }
 
-    ModifiableSolrParams modParams = new ModifiableSolrParams();
-    modParams.set(CoreAdminParams.ACTION, CollectionParams.CollectionAction.CREATE.name());
-    modParams.set("name", collectionName);
-    modParams.set("numShards", numShards);
-    modParams.set("replicationFactor", replicationFactor);
-    modParams.set("collection.configName", confName);
-    QueryRequest request = new QueryRequest(modParams);
-    request.setPath("/admin/collections");
-    cloudSolrServer.request(request);
+    Map<String, String> collectionProperties = new HashMap<>();
+    collectionProperties.putIfAbsent("solr.tests.maxBufferedDocs", "100000");
+    collectionProperties.putIfAbsent("solr.tests.ramBufferSizeMB", "100");
+    collectionProperties.putIfAbsent("solr.tests.mergeScheduler", "org.apache.lucene.index.ConcurrentMergeScheduler");
+    collectionProperties.putIfAbsent("solr.directoryFactory", "solr.StandardDirectoryFactory");
+
+    CollectionAdminRequest.createCollection(collectionName, configName, numShards, replicationFactor)
+      .setProperties(collectionProperties)
+      .processAndWait(cluster.getSolrClient(), 30);
+
     ensureAllReplicasAreActive(collectionName, numShards, replicationFactor, 20);
   }
 
@@ -163,7 +167,7 @@ public class SolrCloudClusterSupport {
       int maxWaitSecs) throws Exception {
     long startMs = System.currentTimeMillis();
 
-    ZkStateReader zkr = cloudSolrServer.getZkStateReader();
+    ZkStateReader zkr = cloudSolrClient.getZkStateReader();
     zkr.updateClusterState(); // force the state to be fresh
 
     ClusterState cs = zkr.getClusterState();
@@ -177,10 +181,10 @@ public class SolrCloudClusterSupport {
       // refresh state every 2 secs
       if (waitMs % 2000 == 0) {
         log.info("Updating ClusterState");
-        cloudSolrServer.getZkStateReader().updateClusterState();
+        cloudSolrClient.getZkStateReader().updateClusterState();
       }
 
-      cs = cloudSolrServer.getZkStateReader().getClusterState();
+      cs = cloudSolrClient.getZkStateReader().getClusterState();
       assertNotNull(cs);
       allReplicasUp = true; // assume true
       for (Slice shard : cs.getActiveSlices(testCollectionName)) {
@@ -223,9 +227,9 @@ public class SolrCloudClusterSupport {
   }
 
   protected static String printClusterStateInfo(String collection) throws Exception {
-    cloudSolrServer.getZkStateReader().updateClusterState();
+    cloudSolrClient.getZkStateReader().updateClusterState();
     String cs = null;
-    ClusterState clusterState = cloudSolrServer.getZkStateReader().getClusterState();
+    ClusterState clusterState = cloudSolrClient.getZkStateReader().getClusterState();
     if (collection != null) {
       cs = clusterState.getCollection(collection).toString();
     } else {
@@ -248,7 +252,7 @@ public class SolrCloudClusterSupport {
   }
 
   protected static void removeAllDocs() throws IOException, SolrServerException {
-    cloudSolrServer.deleteByQuery("*:*");
+    cloudSolrClient.deleteByQuery("*:*");
   }
 
   // Use to verify document count
@@ -258,7 +262,7 @@ public class SolrCloudClusterSupport {
     SolrQuery solrQuery = new SolrQuery();
     solrQuery.setQuery(query);
 
-    QueryResponse rsp = cloudSolrServer.query(solrQuery);
+    QueryResponse rsp = cloudSolrClient.query(solrQuery);
     SolrDocumentList docs = rsp.getResults();
     int docsSize = (int) docs.getNumFound();
 
@@ -272,7 +276,7 @@ public class SolrCloudClusterSupport {
     SolrQuery solrQuery = new SolrQuery();
     solrQuery.setQuery(query);
 
-    QueryResponse rsp = cloudSolrServer.query(solrQuery);
+    QueryResponse rsp = cloudSolrClient.query(solrQuery);
     SolrDocumentList docs = rsp.getResults();
     assertEquals(expectedCount, docs.size());
     log.info("docs: " + docs.toString());

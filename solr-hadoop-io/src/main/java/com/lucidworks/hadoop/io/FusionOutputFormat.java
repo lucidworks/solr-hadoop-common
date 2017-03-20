@@ -11,14 +11,14 @@ import org.apache.hadoop.mapred.Reporter;
 import org.apache.hadoop.util.Progressable;
 import org.apache.solr.common.SolrInputDocument;
 import org.apache.solr.common.SolrInputField;
-import org.apache.solr.common.util.DateUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.time.Instant;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -129,6 +129,7 @@ public class FusionOutputFormat implements OutputFormat<Text, LWDocumentWritable
       }
     }
 
+    @SuppressWarnings("unchecked")
     protected Map<String, Object> doc2json(SolrInputDocument solrDoc) {
       Map<String, Object> json = new HashMap<String, Object>();
       String docId = (String) solrDoc.getFieldValue("id");
@@ -144,8 +145,7 @@ public class FusionOutputFormat implements OutputFormat<Text, LWDocumentWritable
         }
       }
       // keep track of the time we saw this doc on hadoop side
-      String tdt = DateUtil.getThreadLocalDateFormat().format(new Date());
-      fields.add(mapField("_hadoop_tdt", null, tdt));
+      fields.add(mapField("_hadoop_tdt", null, DateTimeFormatter.ISO_INSTANT.format(Instant.now())));
 
       // Adds some fields for fusion
       addFusionFieldsIfNeeded(fields);
@@ -154,6 +154,7 @@ public class FusionOutputFormat implements OutputFormat<Text, LWDocumentWritable
       return json;
     }
 
+    @SuppressWarnings("unchecked")
     protected void appendField(SolrInputDocument doc, String f, String pfx, List fields) {
       SolrInputField field = doc.getField(f);
       int vc = field.getValueCount();
@@ -194,6 +195,7 @@ public class FusionOutputFormat implements OutputFormat<Text, LWDocumentWritable
       fusionPipelineClient.shutdown();
     }
 
+    @SuppressWarnings("unchecked")
     private void addFusionFieldsIfNeeded(List fields) {
       String datasource = jobConf.get(FUSION_DATASOURCE);
       if (datasource != null && !datasource.isEmpty()) {

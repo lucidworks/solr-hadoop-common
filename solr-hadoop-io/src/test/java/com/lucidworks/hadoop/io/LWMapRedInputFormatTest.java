@@ -21,7 +21,7 @@ public class LWMapRedInputFormatTest extends SolrCloudClusterSupport {
   public void testInputFormat() throws IOException {
     JobConf conf = new JobConf();
     conf.set(LWMapRedInputFormat.SOLR_ZKHOST, getBaseUrl());
-    conf.set(LWMapRedInputFormat.SOLR_COLLECTION, "collection1");
+    conf.set(LWMapRedInputFormat.SOLR_COLLECTION, DEFAULT_COLLECTION);
     conf.set("lww.commit.on.close", "true");
 
     // lots of docs

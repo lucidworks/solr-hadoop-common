@@ -2,11 +2,6 @@ package com.lucidworks.hadoop.io;
 
 import com.lucidworks.hadoop.io.impl.LWMockDocument;
 import com.lucidworks.hadoop.utils.SolrCloudClusterSupport;
-import java.io.IOException;
-import java.net.SocketException;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.Map;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.util.Progressable;
@@ -14,7 +9,6 @@ import org.apache.solr.client.solrj.SolrClient;
 import org.apache.solr.client.solrj.SolrRequest;
 import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.client.solrj.impl.CloudSolrClient;
-import org.apache.solr.client.solrj.impl.HttpSolrClient;
 import org.apache.solr.client.solrj.response.UpdateResponse;
 import org.apache.solr.common.SolrInputDocument;
 import org.apache.solr.common.util.NamedList;
@@ -22,6 +16,12 @@ import org.junit.Before;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
+import java.net.SocketException;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.Map;
 
 public class LucidWorksWriterTest extends SolrCloudClusterSupport {
 
@@ -39,6 +39,7 @@ public class LucidWorksWriterTest extends SolrCloudClusterSupport {
 
     Configuration conf = new Configuration();
     conf.set(LucidWorksWriter.SOLR_ZKHOST, getBaseUrl());
+    conf.set(LucidWorksWriter.SOLR_COLLECTION, DEFAULT_COLLECTION);
     conf.set("lww.commit.on.close", "true");
     conf.setBoolean("lw.annotations", true);
     conf.setBoolean("lw.metadata", true);
@@ -46,12 +47,12 @@ public class LucidWorksWriterTest extends SolrCloudClusterSupport {
     lucidWorksWriter.open(conf, "name");
 
     lucidWorksWriter.write(new Text("text"), LucidWorksWriterTest
-        .createLWDocumentWritable("id-1", "field-1", "field-value-1", "field-2", "field-value-2",
-            "field-3", "field-value-3"));
+        .createLWDocumentWritable("id-1", "field-1_s", "field-value-1", "field-2_s", "field-value-2",
+            "field-3_s", "field-value-3"));
 
     LWDocumentWritable doc = LucidWorksWriterTest
-        .createLWDocumentWritable("id-2", "field-1", "This is field value 1", "field-2_ss",
-            "This is field value 2.  It is longer than field value 1.", "field-3",
+        .createLWDocumentWritable("id-2", "field-1_s", "This is field value 1", "field-2_s",
+            "This is field value 2.  It is longer than field value 1.", "field-3_s",
             "This is field value 3.  It is longer than both field value 1 and field value 2.");
     //add annotations
     LWDocument pipeDoc = doc.getLWDocument();
@@ -65,14 +66,11 @@ public class LucidWorksWriterTest extends SolrCloudClusterSupport {
     lucidWorksWriter.commit();
     lucidWorksWriter.close();
 
-    assertQ("id:id-1", 1, "field-1", "field-value-1", "field-2", "field-value-2", "field-3",
+    assertQ("id:id-1", 1, "field-1_s", "field-value-1", "field-2_s", "field-value-2", "field-3_s",
         "field-value-3");
     assertQ("*:*", 2);
     //Metadata
     assertQ("meta_0:meta_value_0", 1);
-    //Annotations
-    // TODO: MOCK without annotations.
-    //assertQ("junk_annot_1_s:annotation_1", 1);
   }
 
   @Test
@@ -81,6 +79,7 @@ public class LucidWorksWriterTest extends SolrCloudClusterSupport {
     LucidWorksWriter lucidWorksWriter = new LucidWorksWriter(progressable);
     Configuration conf = new Configuration();
     conf.set(LucidWorksWriter.SOLR_ZKHOST, getBaseUrl());
+    conf.set(LucidWorksWriter.SOLR_COLLECTION, DEFAULT_COLLECTION);
     conf.set("lww.commit.on.close", "true");
     lucidWorksWriter.open(conf, "name");
     //make sure we trigger the buffering and have left overs
@@ -185,7 +184,7 @@ public class LucidWorksWriterTest extends SolrCloudClusterSupport {
 
     public FakeRetrySolrServer(String zkString, boolean alwaysFail, int retries) {
       CloudSolrClient client  = new CloudSolrClient(zkString);
-      client.setDefaultCollection("collection1");
+      client.setDefaultCollection(DEFAULT_COLLECTION);
       client.connect();
       this.delegate = client;
       this.alwaysFail = alwaysFail;
@@ -217,7 +216,7 @@ public class LucidWorksWriterTest extends SolrCloudClusterSupport {
     }
 
     @Override
-    public void shutdown() {
+    public void close() {
       try {
         delegate.close();
       } catch (IOException e) {

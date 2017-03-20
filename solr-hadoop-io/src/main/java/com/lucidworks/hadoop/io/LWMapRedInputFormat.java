@@ -27,6 +27,7 @@ import org.apache.solr.client.solrj.response.QueryResponse;
 import org.apache.solr.common.SolrDocument;
 import org.apache.solr.common.SolrDocumentList;
 import org.apache.solr.common.cloud.ClusterState;
+import org.apache.solr.common.cloud.DocCollection;
 import org.apache.solr.common.cloud.Replica;
 import org.apache.solr.common.cloud.Slice;
 import org.apache.solr.common.cloud.ZkCoreNodeProps;
@@ -254,7 +255,9 @@ public class LWMapRedInputFormat implements InputFormat<IntWritable, LWDocumentW
       isZk = true;
       CloudSolrClient solrCloud = null;
       try {
-        solrCloud = new CloudSolrClient(connectionUri);
+        solrCloud = new CloudSolrClient.Builder()
+            .withZkHost(connectionUri)
+            .build();
         solrCloud.setDefaultCollection(collection);
         solrCloud.connect();
         // first get a list of replicas to query for this collection
@@ -300,10 +303,14 @@ public class LWMapRedInputFormat implements InputFormat<IntWritable, LWDocumentW
     if (lwSplit.isZk) {
       SolrSecurity.setSecurityConfig(job);
       if (lwSplit.isShard) {
-        solr = new HttpSolrClient(lwSplit.getConnectionUri());
+        solr = new HttpSolrClient.Builder()
+            .withBaseSolrUrl(lwSplit.getConnectionUri())
+            .build();
       } else {
         // somehow the list of shard is unavailable
-        solr = new CloudSolrClient(lwSplit.getConnectionUri());
+        solr = new CloudSolrClient.Builder()
+            .withZkHost(lwSplit.getConnectionUri())
+            .build();
         ((CloudSolrClient) solr).setDefaultCollection(collection);
       }
 
@@ -317,7 +324,10 @@ public class LWMapRedInputFormat implements InputFormat<IntWritable, LWDocumentW
       }
 
       connectionUri += collection;
-      solr = new ConcurrentUpdateSolrClient(connectionUri, queueSize, threadCount);
+      solr = new ConcurrentUpdateSolrClient.Builder(connectionUri)
+          .withQueueSize(queueSize)
+          .withThreadCount(threadCount)
+          .build();
     }
 
     SolrQuery solrQuery = new SolrQuery(query);
@@ -335,12 +345,14 @@ public class LWMapRedInputFormat implements InputFormat<IntWritable, LWDocumentW
     ZkStateReader zkStateReader = cloudSolrServer.getZkStateReader();
 
     ClusterState clusterState = zkStateReader.getClusterState();
-    Set<String> liveNodes = clusterState.getLiveNodes();
-    Collection<Slice> slices = clusterState.getSlices(collection);
+    DocCollection docCollection = clusterState.getCollection(collection);
+    Collection<Slice> slices = docCollection.getSlices();
+
     if (slices == null) {
       throw new IllegalArgumentException("Collection " + collection + " not found!");
     }
 
+    Set<String> liveNodes = clusterState.getLiveNodes();
     Random random = new Random();
     List<String> shards = new ArrayList<String>();
     for (Slice slice : slices) {
