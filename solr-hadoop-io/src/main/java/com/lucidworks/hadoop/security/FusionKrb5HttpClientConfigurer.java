@@ -50,7 +50,7 @@ public class FusionKrb5HttpClientConfigurer extends HttpClientConfigurer {
     if (fusionPrincipal == null) {
       logger.error("fusion.user [principal] must be set in order to use kerberos");
     }
-    HttpClientUtil.setConfigurer(new FusionKrb5HttpClientConfigurer(fusionPrincipal));
+    HttpClientUtil.addConfigurer(new FusionKrb5HttpClientConfigurer(fusionPrincipal));
     CloseableHttpClient httpClient = HttpClientUtil.createClient(null);
     HttpClientUtil.setMaxConnections(httpClient, 500);
     HttpClientUtil.setMaxConnectionsPerHost(httpClient, 100);

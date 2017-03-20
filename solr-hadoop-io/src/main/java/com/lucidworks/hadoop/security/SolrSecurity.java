@@ -24,7 +24,7 @@ public class SolrSecurity {
       System.setProperty("java.security.auth.login.config", jaasFile);
       final String appname = job.get(LWW_JAAS_APPNAME, "Client");
       System.setProperty("solr.kerberos.jaas.appname", appname);
-      HttpClientUtil.setConfigurer(new Krb5HttpClientConfigurer());
+      HttpClientUtil.addConfigurer(new Krb5HttpClientConfigurer());
     }
     final String keystore = job.get(LWW_KEYSTORE);
     if (keystore != null) {
