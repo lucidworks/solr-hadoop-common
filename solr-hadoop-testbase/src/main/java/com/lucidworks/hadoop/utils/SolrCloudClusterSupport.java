@@ -4,6 +4,27 @@ import com.carrotsearch.randomizedtesting.annotations.ThreadLeakAction;
 import com.carrotsearch.randomizedtesting.annotations.ThreadLeakLingering;
 import com.carrotsearch.randomizedtesting.annotations.ThreadLeakScope;
 import com.carrotsearch.randomizedtesting.annotations.ThreadLeakZombies;
+import org.apache.log4j.Logger;
+import org.apache.solr.client.solrj.SolrQuery;
+import org.apache.solr.client.solrj.SolrServerException;
+import org.apache.solr.client.solrj.embedded.JettyConfig;
+import org.apache.solr.client.solrj.impl.CloudSolrClient;
+import org.apache.solr.client.solrj.request.CollectionAdminRequest;
+import org.apache.solr.client.solrj.response.QueryResponse;
+import org.apache.solr.client.solrj.response.SolrPingResponse;
+import org.apache.solr.cloud.MiniSolrCloudCluster;
+import org.apache.solr.common.SolrDocument;
+import org.apache.solr.common.SolrDocumentList;
+import org.apache.solr.common.cloud.ClusterState;
+import org.apache.solr.common.cloud.DocCollection;
+import org.apache.solr.common.cloud.Replica;
+import org.apache.solr.common.cloud.Slice;
+import org.apache.solr.common.cloud.ZkStateReader;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
+import org.noggit.CharArr;
+import org.noggit.JSONWriter;
+
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.FileVisitResult;
@@ -16,40 +37,11 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.apache.log4j.Logger;
-import org.apache.solr.client.solrj.SolrQuery;
-import org.apache.solr.client.solrj.SolrServerException;
-import org.apache.solr.client.solrj.embedded.JettyConfig;
-import org.apache.solr.client.solrj.impl.CloudSolrClient;
-import org.apache.solr.client.solrj.request.CollectionAdminRequest;
-import org.apache.solr.client.solrj.request.QueryRequest;
-import org.apache.solr.client.solrj.response.QueryResponse;
-import org.apache.solr.client.solrj.response.SolrPingResponse;
-import org.apache.solr.cloud.MiniSolrCloudCluster;
-import org.apache.solr.common.SolrDocument;
-import org.apache.solr.common.SolrDocumentList;
-import org.apache.solr.common.cloud.ClusterState;
-import org.apache.solr.common.cloud.DocCollection;
-import org.apache.solr.common.cloud.Replica;
-import org.apache.solr.common.cloud.Slice;
-import org.apache.solr.common.cloud.SolrZkClient;
-import org.apache.solr.common.cloud.ZkConfigManager;
-import org.apache.solr.common.cloud.ZkStateReader;
-import org.apache.solr.common.params.CollectionParams;
-import org.apache.solr.common.params.CoreAdminParams;
-import org.apache.solr.common.params.ModifiableSolrParams;
-import org.apache.solr.core.CoreDescriptor;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.noggit.CharArr;
-import org.noggit.JSONWriter;
-
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-@SuppressWarnings("deprecation")
 @ThreadLeakAction({ ThreadLeakAction.Action.WARN })
 @ThreadLeakLingering(linger = 0)
 @ThreadLeakZombies(ThreadLeakZombies.Consequence.CONTINUE)
@@ -168,10 +160,11 @@ public class SolrCloudClusterSupport {
     long startMs = System.currentTimeMillis();
 
     ZkStateReader zkr = cloudSolrClient.getZkStateReader();
-    zkr.updateClusterState(); // force the state to be fresh
+    zkr.forceUpdateCollection(testCollectionName); // force the state to be fresh
 
     ClusterState cs = zkr.getClusterState();
-    Collection<Slice> slices = cs.getActiveSlices(testCollectionName);
+    DocCollection docCollection = cs.getCollection(testCollectionName);
+    Collection<Slice> slices = docCollection.getActiveSlices();
     assertTrue(slices.size() == shards);
     boolean allReplicasUp = false;
     long waitMs = 0L;
@@ -181,13 +174,13 @@ public class SolrCloudClusterSupport {
       // refresh state every 2 secs
       if (waitMs % 2000 == 0) {
         log.info("Updating ClusterState");
-        cloudSolrClient.getZkStateReader().updateClusterState();
+        cloudSolrClient.getZkStateReader().forceUpdateCollection(testCollectionName);
       }
 
       cs = cloudSolrClient.getZkStateReader().getClusterState();
       assertNotNull(cs);
       allReplicasUp = true; // assume true
-      for (Slice shard : cs.getActiveSlices(testCollectionName)) {
+      for (Slice shard : docCollection.getActiveSlices()) {
         String shardId = shard.getName();
         assertNotNull("No Slice for " + shardId, shard);
         Collection<Replica> replicas = shard.getReplicas();
@@ -227,15 +220,13 @@ public class SolrCloudClusterSupport {
   }
 
   protected static String printClusterStateInfo(String collection) throws Exception {
-    cloudSolrClient.getZkStateReader().updateClusterState();
-    String cs = null;
+    cloudSolrClient.getZkStateReader().forceUpdateCollection(collection);
+    String cs;
     ClusterState clusterState = cloudSolrClient.getZkStateReader().getClusterState();
     if (collection != null) {
       cs = clusterState.getCollection(collection).toString();
     } else {
-      Map<String, DocCollection> map = new HashMap<String, DocCollection>();
-      for (String coll : clusterState.getCollections())
-        map.put(coll, clusterState.getCollection(coll));
+      Map<String, DocCollection> map = clusterState.getCollectionsMap();
       CharArr out = new CharArr();
       new JSONWriter(out, 2).write(map);
       cs = out.toString();
