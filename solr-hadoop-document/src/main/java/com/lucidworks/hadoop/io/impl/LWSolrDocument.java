@@ -118,8 +118,7 @@ public class LWSolrDocument implements LWDocument {
           if (theValStr != null && !theValStr.equals(DUMMY_HOLDER)) {
             Object theVal = objectMapper.readValue(theValStr, Object.class);
             if (theVal != null) {
-              // default boost value
-              solrField.addValue(theVal, 1.0F);
+              solrField.addValue(theVal);
             } else {
               log.warn("Couldn't convert JSON string: {}", theValStr);
             }

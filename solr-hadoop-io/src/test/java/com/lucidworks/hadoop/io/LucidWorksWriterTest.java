@@ -1,5 +1,6 @@
 package com.lucidworks.hadoop.io;
 
+import com.google.common.collect.Lists;
 import com.lucidworks.hadoop.io.impl.LWMockDocument;
 import com.lucidworks.hadoop.utils.SolrCloudClusterSupport;
 import org.apache.hadoop.conf.Configuration;
@@ -19,9 +20,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.net.SocketException;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 
 public class LucidWorksWriterTest extends SolrCloudClusterSupport {
 
@@ -183,7 +182,8 @@ public class LucidWorksWriterTest extends SolrCloudClusterSupport {
     int retries;
 
     public FakeRetrySolrServer(String zkString, boolean alwaysFail, int retries) {
-      CloudSolrClient client  = new CloudSolrClient(zkString);
+      final List<String> zkHostList = Lists.newArrayList(zkString);
+      final CloudSolrClient client = new CloudSolrClient.Builder(zkHostList, Optional.empty()).build();
       client.setDefaultCollection(DEFAULT_COLLECTION);
       client.connect();
       this.delegate = client;

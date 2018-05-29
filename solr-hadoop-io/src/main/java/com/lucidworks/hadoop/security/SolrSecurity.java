@@ -2,9 +2,11 @@ package com.lucidworks.hadoop.security;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.solr.client.solrj.impl.HttpClientUtil;
-import org.apache.solr.client.solrj.impl.Krb5HttpClientConfigurer;
+import org.apache.solr.client.solrj.impl.Krb5HttpClientBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.Optional;
 
 public class SolrSecurity {
   public static final String LWW_JAAS_FILE = "lww.jaas.file";
@@ -24,7 +26,9 @@ public class SolrSecurity {
       System.setProperty("java.security.auth.login.config", jaasFile);
       final String appname = job.get(LWW_JAAS_APPNAME, "Client");
       System.setProperty("solr.kerberos.jaas.appname", appname);
-      HttpClientUtil.addConfigurer(new Krb5HttpClientConfigurer());
+
+      final Krb5HttpClientBuilder builder = new Krb5HttpClientBuilder();
+      HttpClientUtil.setHttpClientBuilder(builder.getHttpClientBuilder(Optional.empty()));
     }
     final String keystore = job.get(LWW_KEYSTORE);
     if (keystore != null) {
