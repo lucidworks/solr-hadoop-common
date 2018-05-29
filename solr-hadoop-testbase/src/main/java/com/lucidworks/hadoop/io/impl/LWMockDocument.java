@@ -117,9 +117,6 @@ public class LWMockDocument implements LWDocument {
 
     SolrInputDocument sdoc1 = (SolrInputDocument) expected;
     SolrInputDocument sdoc2 = (SolrInputDocument) actual;
-    if (Float.compare(sdoc1.getDocumentBoost(), sdoc2.getDocumentBoost()) != 0) {
-      return false;
-    }
 
     if (sdoc1.getFieldNames().size() != sdoc2.getFieldNames().size()) {
       return false;
