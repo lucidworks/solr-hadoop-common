@@ -2,7 +2,7 @@ package com.lucidworks.hadoop.io;
 
 import com.lucidworks.hadoop.security.SolrSecurity;
 
-import org.apache.commons.httpclient.NoHttpResponseException;
+import org.apache.http.NoHttpResponseException;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.net.ConnectTimeoutException;
