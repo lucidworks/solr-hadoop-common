@@ -1,7 +1,7 @@
 project(":solr-hadoop-common:solr-hadoop-document") {
 
     dependencies {
-        compile("org.apache.hadoop:hadoop-client:${hadoop2Version}") {
+        compile("org.apache.hadoop:hadoop-client:${hadoopVersion}") {
             exclude group: "org.fusesource.leveldbjni"
             exclude group: "aopalliance"
             exclude group: "org.apache.avro"
@@ -33,7 +33,7 @@ project(":solr-hadoop-common:solr-hadoop-io") {
 
     dependencies {
         compile("org.apache.solr:solr-solrj:${solrVersion}")
-        compile("org.apache.hadoop:hadoop-client:${hadoop2Version}")
+        compile("org.apache.hadoop:hadoop-client:${hadoopVersion}")
         compile "com.google.inject:guice:3.0"
 
         testCompile 'junit:junit:4.12'
@@ -55,7 +55,7 @@ project(":solr-hadoop-common:solr-hadoop-testbase") {
 
         compile(project(':solr-hadoop-common:solr-hadoop-document')) {
         }
-        compile "org.apache.hadoop:hadoop-client:${hadoop2Version}"
+        compile "org.apache.hadoop:hadoop-client:${hadoopVersion}"
         compile "org.apache.solr:solr-test-framework:${solrVersion}"
     }
 }
