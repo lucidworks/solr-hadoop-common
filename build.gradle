@@ -37,6 +37,7 @@ project(":solr-hadoop-common:solr-hadoop-io") {
         compile("org.apache.hadoop:hadoop-client:${hadoop2Version}")
         compile "com.google.inject:guice:3.0"
         compile("com.fasterxml.jackson.core:jackson-databind:2.7.8")
+        compile("org.apache.httpcomponents:httpcore:4.4.6")
 
         testCompile 'junit:junit:4.12'
         testCompile 'com.carrotsearch.randomizedtesting:junit4-ant:1.4.0'
