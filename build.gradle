@@ -14,6 +14,7 @@ project(":solr-hadoop-common:solr-hadoop-document") {
             exclude group: "com.sun.jersey"
             exclude group: "log4j"
         }
+        compile("com.fasterxml.jackson.core:jackson-databind:2.7.8")
         compile("org.apache.solr:solr-solrj:${solrVersion}") {
             transitive = false
         }
@@ -35,6 +36,7 @@ project(":solr-hadoop-common:solr-hadoop-io") {
         compile("org.apache.solr:solr-solrj:${solrVersion}")
         compile("org.apache.hadoop:hadoop-client:${hadoop2Version}")
         compile "com.google.inject:guice:3.0"
+        compile("com.fasterxml.jackson.core:jackson-databind:2.7.8")
 
         testCompile 'junit:junit:4.12'
         testCompile 'com.carrotsearch.randomizedtesting:junit4-ant:1.4.0'
