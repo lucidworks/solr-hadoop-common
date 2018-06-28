@@ -1,7 +1,20 @@
 project(":solr-hadoop-common:solr-hadoop-document") {
 
     dependencies {
-        compile("org.apache.hadoop:hadoop-client:${hadoop2Version}") {
+        hadoop2Compile("org.apache.hadoop:hadoop-client:${hadoop2Version}") {
+            exclude group: "org.fusesource.leveldbjni"
+            exclude group: "aopalliance"
+            exclude group: "org.apache.avro"
+            exclude group: "org.apache.zookeeper"
+            exclude group: "org.mortbay.jetty"
+            exclude group: "org.apache.httpcomponents"
+            exclude group: "com.google.protobuf"
+            exclude group: "io.netty"
+            exclude group: "jline"
+            exclude group: "com.sun.jersey"
+            exclude group: "log4j"
+        }
+        hadoop3Compile("org.apache.hadoop:hadoop-client:${hadoop3Version}") {
             exclude group: "org.fusesource.leveldbjni"
             exclude group: "aopalliance"
             exclude group: "org.apache.avro"
@@ -34,7 +47,8 @@ project(":solr-hadoop-common:solr-hadoop-io") {
 
     dependencies {
         compile("org.apache.solr:solr-solrj:${solrVersion}")
-        compile("org.apache.hadoop:hadoop-client:${hadoop2Version}")
+        hadoop2Compile("org.apache.hadoop:hadoop-client:${hadoop2Version}")
+        hadoop3Compile("org.apache.hadoop:hadoop-client:${hadoop3Version}")
         compile "com.google.inject:guice:3.0"
         compile("com.fasterxml.jackson.core:jackson-databind:2.7.8")
         compile("org.apache.httpcomponents:httpcore:4.4.6")
@@ -58,7 +72,8 @@ project(":solr-hadoop-common:solr-hadoop-testbase") {
 
         compile(project(':solr-hadoop-common:solr-hadoop-document')) {
         }
-        compile "org.apache.hadoop:hadoop-client:${hadoop2Version}"
+        hadoop2Compile "org.apache.hadoop:hadoop-client:${hadoop2Version}"
+        hadoop3Compile "org.apache.hadoop:hadoop-client:${hadoop3Version}"
         compile "org.apache.solr:solr-test-framework:${solrVersion}"
     }
 }
