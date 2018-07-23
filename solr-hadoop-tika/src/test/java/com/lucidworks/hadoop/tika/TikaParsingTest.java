@@ -11,10 +11,7 @@ import com.lucidworks.hadoop.io.impl.LWSolrDocument;
 
 import junit.framework.Assert;
 
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 public class TikaParsingTest {
 
@@ -55,6 +52,12 @@ public class TikaParsingTest {
     doc.setContent(zipBody);
 
     LWDocument[] docs = new TikaParsing().tikaParsing(doc);
+    final Comparator<LWDocument> docIdComparator = new Comparator<LWDocument>() {
+      public int compare(LWDocument first, LWDocument second) {
+        return second.getId().compareTo(first.getId());
+      }
+    };
+    Arrays.sort(docs, docIdComparator);
 
     // validations
     Set<String> expectedDocs = new HashSet<>();
@@ -68,12 +71,15 @@ public class TikaParsingTest {
     expectedDocs.add("test-documents.zip#testWORD.doc");
     expectedDocs.add("test-documents.zip#testXML.xml");
 
-    Assert.assertEquals("Invalid parsed documents number", 10, docs.length);
+    Assert.assertEquals("Invalid parsed documents number", 12, docs.length);
+
     for (int index = 0; index < 9; index++) {
       Assert.assertTrue("Invalid parsed document", expectedDocs.contains(docs[index].getId()));
     }
-    Assert.assertTrue("Invalid parsed document",
-      docs[9].getId().startsWith("test-documents.zip#"));// document representing the zip file
-    Assert.assertEquals("Invalid parsed document", docs[9].getFirstFieldValue("Content-Type"), "application/zip");
+
+    // Ensure one of the documents is for the zip itself
+    final boolean zipRepresented = Arrays.stream(docs).anyMatch(
+            singleDoc -> singleDoc.getFirstFieldValue("Content-Type").equals("application/zip"));
+    Assert.assertTrue("Expected to find a document matching the ZIP itself", zipRepresented);
   }
 }
