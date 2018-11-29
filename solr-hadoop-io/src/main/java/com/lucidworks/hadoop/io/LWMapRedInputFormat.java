@@ -4,11 +4,7 @@ import com.lucidworks.hadoop.security.SolrSecurity;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-import java.util.Random;
-import java.util.Set;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.apache.hadoop.io.IntWritable;
@@ -341,15 +337,38 @@ public class LWMapRedInputFormat implements InputFormat<IntWritable, LWDocumentW
     return new LWRecordReader(solr, solrQuery, "*");
   }
 
+  protected boolean isAlias(String collectionName, ZkStateReader reader) {
+    return reader.getAliases().getCollectionAliasListMap().keySet().contains(collectionName);
+  }
+
+  protected List<String> getCollectionsForAlias(String collectionName, ZkStateReader reader) {
+    return reader.getAliases().getCollectionAliasListMap().get(collectionName);
+  }
+
   protected List<String> buildShardList(CloudSolrClient cloudSolrServer, final String collection) {
+    final List<String> shardsList = new ArrayList<>();
     ZkStateReader zkStateReader = cloudSolrServer.getZkStateReader();
 
+    if (isAlias(collection, zkStateReader)) {
+      for (String aliasedCollection : getCollectionsForAlias(collection, zkStateReader)) {
+        final List<String> shardsForSingleCollection = populateShardListForCollection(zkStateReader, aliasedCollection);
+        shardsList.addAll(shardsForSingleCollection);
+      }
+    } else {
+      populateShardListForCollection(zkStateReader, collection);
+      shardsList.addAll(populateShardListForCollection(zkStateReader, collection));
+    }
+
+    return shardsList;
+  }
+
+  protected List<String> populateShardListForCollection(ZkStateReader zkStateReader, String collectionName) {
     ClusterState clusterState = zkStateReader.getClusterState();
-    DocCollection docCollection = clusterState.getCollection(collection);
+    DocCollection docCollection = clusterState.getCollection(collectionName);
     Collection<Slice> slices = docCollection.getSlices();
 
     if (slices == null) {
-      throw new IllegalArgumentException("Collection " + collection + " not found!");
+      throw new IllegalArgumentException("Collection " + collectionName + " not found!");
     }
 
     Set<String> liveNodes = clusterState.getLiveNodes();
@@ -366,12 +385,12 @@ public class LWMapRedInputFormat implements InputFormat<IntWritable, LWDocumentW
       int numReplicas = replicas.size();
       if (numReplicas == 0) {
         throw new IllegalStateException(
-            "Shard " + slice.getName() + " does not have any active replicas!");
+                "Shard " + slice.getName() + " does not have any active replicas!");
       }
 
       String replicaUrl = (numReplicas == 1) ?
-          replicas.get(0) :
-          replicas.get(random.nextInt(replicas.size()));
+              replicas.get(0) :
+              replicas.get(random.nextInt(replicas.size()));
       shards.add(replicaUrl);
     }
 
